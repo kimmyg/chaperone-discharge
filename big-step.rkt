@@ -12,7 +12,7 @@
 (define (eval e)
   (define (app f vs σ)
     (match f
-      [(closure (lam-e xs r e) ρ)
+      [(closure xs r ρ e)
        (let-values ([(ρ σ) (bind ρ σ xs r vs)])
          (inner e ρ σ))]
       [(chaperone f w)
@@ -62,7 +62,8 @@
       [(prim-e 'chaperone-operator)
        (match vs
          [(list (? operator? f) (? operator? w))
-          (if (arity-subsumes? w f)
+          (if (arity=? (operator-arity f)
+                       (operator-arity w))
               (cons σ (single-value (chaperone f w)))
               (error 'eval "arity of wrapper must subsume arity of operator"))]
          [_
@@ -70,7 +71,8 @@
       [(prim-e 'impersonate-operator)
        (match vs
          [(list (? operator? f) (? operator? w))
-          (if (arity-subsumes? w f)
+          (if (arity=? (operator-arity f)
+                       (operator-arity w))
               (cons σ (single-value (impersonator f w)))
               (error 'eval "arity of wrapper must subsume arity of operator"))]
          [_
@@ -101,7 +103,7 @@
       [(bool-e p)
        (cons σ (single-value p))]
       [(lam-e xs r e)
-       (cons σ (single-value (closure (lam-e xs r e) ρ)))]
+       (cons σ (single-value (closure xs r ρ e)))]
       [(let-e xs r e0 e1)
        (match-let ([(cons σ (app value->list vs)) (inner e0 ρ σ)])
          (let-values ([(ρ σ) (bind ρ σ xs r vs)])
@@ -140,9 +142,10 @@
                            (λ (f w)
                              (if (and (operator? f)
                                       (operator? w))
-                                 (if (arity-subsumes? w f)
+                                 (if (arity=? (operator-arity f)
+                                              (operator-arity w))
                                      (chaperone f w)
-                                     (error 'eval "arity of wrapper must subsume arity of operator"))
+                                     (error 'eval "operator and wrapper must have same arity"))
                                  (error 'eval "chaperone-operator must be applied to operators")))
                            2)))]
       [(prim-e 'impersonate-operator)
@@ -151,9 +154,10 @@
                            (λ (f w)
                              (if (and (operator? f)
                                       (operator? w))
-                                 (if (arity-subsumes? w f)
+                                 (if (arity=? (operator-arity f)
+                                              (operator-arity w))
                                      (impersonator f w)
-                                     (error 'eval "arity of wrapper must subsume arity of operator"))
+                                     (error 'eval "operator and wrapper must have same arity"))
                                  (error 'eval "impersonate-operator must be applied to operators")))
                            2)))]
       [(prim-e 'integer?)

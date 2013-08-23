@@ -6,7 +6,8 @@
          (struct-out multiple-values)
          value->list
          list->value
-         single-value!)
+         single-value!
+         map-values)
 
 (struct value () #:transparent)
 (struct single-value value (v) #:transparent)
@@ -31,4 +32,11 @@
     [(single-value v)
      v]
     [(multiple-values vs)
-     (error 'single-value! "values ~a" vs)]))
+     (error 'single-value! "multiple values ~a" vs)]))
+
+(define (map-values f v)
+  (match v
+    [(single-value v)
+     (single-value (f v))]
+    [(multiple-values vs)
+     (multiple-values (map f vs))]))
