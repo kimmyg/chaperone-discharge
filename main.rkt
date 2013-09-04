@@ -1,7 +1,7 @@
 #lang racket/base
 (require "parse.rkt"
          "A.rkt"
-         "big-step.rkt")
+         "small-step.rkt")
 
 (define p0
   '(letrec ([(fac) (λ (n)
@@ -160,7 +160,7 @@
 #;(eval* (parse p2))
 #;(eval* (A (parse p2)))
 
-(match (eval (parse p5))
+(match (eval (parse p2))
   [(cons σ v)
    v])
 
