@@ -17,10 +17,12 @@
          (struct-out handle-e)
          (struct-out raise-e)
          (struct-out prim-e)
+         (struct-out ch-op-e)
+         (struct-out im-op-e)
          free-variables
          bind-free-with)
 
-(struct exp () #:transparent)
+(struct exp (label) #:transparent)
 (struct ref-e exp (x) #:transparent)
 (struct int-e exp (n) #:transparent)
 (struct bool-e exp (p) #:transparent)
@@ -35,6 +37,8 @@
 (struct handle-e exp (x e0 e1) #:transparent)
 (struct raise-e exp (e) #:transparent)
 (struct prim-e exp (id) #:transparent)
+(struct ch-op-e exp (f w) #:transparent)
+(struct im-op-e exp (f w) #:transparent)
 
 (define (bind-free-with xs r ys)
   (let ([xs (foldl (λ (x xs) (set-remove xs x)) ys xs)])
@@ -44,29 +48,35 @@
 
 (define free-variables
   (match-lambda
-    [(app-e e es)
+    [(app-e _ e es)
      (foldl set-union (free-variables e) (map free-variables es))]
-    [(if-e e0 e1 e2)
+    [(if-e _ e0 e1 e2)
      (set-union (free-variables e0)
                 (free-variables e1)
                 (free-variables e2))]
-    [(or-e e0 e1)
+    [(or-e _ e0 e1)
      (set-union (free-variables e0)
                 (free-variables e1))]
-    [(raise-e e)
+    [(raise-e _ e)
      (free-variables e)]
-    [(ref-e x)
+    [(ref-e _ x)
      (seteq x)]
-    [(or (int-e _)
-         (bool-e _)
-         (prim-e _))
+    [(or (int-e _ _)
+         (bool-e _ _)
+         (prim-e _ _))
      (seteq)]
-    [(lam-e xs r e)
+    [(lam-e _ xs r e)
      (bind-free-with xs r (free-variables e))]
-    [(let-e xs r e0 e1)
+    [(let-e _ xs r e0 e1)
      (set-union (free-variables e0)
                 (bind-free-with xs r (free-variables e1)))]
-    [(letrec-e xs r e0 e1)
+    [(letrec-e _ xs r e0 e1)
      (bind-free-with xs r (set-union (free-variables e0)
-                                     (free-variables e1)))]))
+                                     (free-variables e1)))]
+    [(ch-op-e _ e0 e1)
+     (set-union (free-variables e0)
+                (free-variables e1))]
+    [(im-op-e _ e0 e1)
+     (set-union (free-variables e0)
+                (free-variables e1))]))
 
