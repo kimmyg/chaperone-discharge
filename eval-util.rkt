@@ -24,16 +24,16 @@
 
 (define alloc
   (let ([i 0])
-    (λ (x)
-      (begin0
-        i
-        (set! i (add1 i))))))
+    (λ (x) x)))
+;      (begin0
+;        i
+;        (set! i (add1 i))))))
 
 (struct ERROR (state) #:transparent)
 
 (struct closure (xs r ρ e) #:transparent)
-(struct chaperone (f w) #:transparent)
-(struct impersonator (f w) #:transparent)
+(struct chaperone (L f w) #:transparent)
+(struct impersonator (L f w) #:transparent)
 (struct primitive (id f +) #:transparent)
 
 (define (chaperone-of? v0 v1)
@@ -57,9 +57,9 @@
   (match-lambda
     [(closure xs r ρ e)
      (if r (arity-at-least (length xs)) (length xs))]
-    [(chaperone f w)
+    [(chaperone _ f w)
      (operator-arity w)]
-    [(impersonator f w)
+    [(impersonator _ f w)
      (operator-arity w)]
     [(primitive id f +)
      +]))
@@ -82,22 +82,22 @@
     (arity-includes? (if r (arity-at-least m)  m)
                      (length vs))))
 
-(define (bind ρ σ xs r vs)
+(define (bind σ ρ xs r vs)
   (if (arity-compatible? xs r vs)
       (let ([n (length xs)])
-        (let*-values ([(ρ σ) (for/fold ([ρ ρ]
-                                        [σ σ])
+        (let*-values ([(σ ρ) (for/fold ([σ σ]
+                                        [ρ ρ])
                                ([x xs]
                                 [v (take vs n)])
                                (let ([α (alloc x)])
-                                 (values (hash-set ρ x α)
-                                         (hash-set σ α v))))]
-                      [(ρ σ) (if r
+                                 (values (hash-update σ α (λ (s) (set-add s v)) (set))
+                                         (hash-set ρ x α))))]
+                      [(σ ρ) (if r
                                  (let ([α (alloc r)])
-                                   (values (hash-set ρ r α)
-                                           (hash-set σ α (drop vs n))))
-                                 (values ρ σ))])
-          (values ρ σ)))
+                                   (values (hash-update σ α (λ (s) (set-add s (drop vs n))) (set))
+                                           (hash-set ρ r α)))
+                                 (values σ ρ))])
+          (values σ ρ)))
       (error 'bind "~a ~a ~a" xs r vs)))
 
 (define (pre-bind ρ xs r)
@@ -111,7 +111,7 @@
                 ρ)])
     ρ))
 
-(define (rec-bind ρ σ xs r vs)
+(define (rec-bind σ ρ xs r vs)
   (if (arity-compatible? xs r vs)
       (let ([n (length xs)])
         (let* ([σ (for/fold ([σ σ])
