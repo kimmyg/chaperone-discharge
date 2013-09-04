@@ -57,11 +57,11 @@
            (A0 'fun e (λ (a0 k0)
                         (A* es (λ (a* k*)
                                  (k (app-e L a0 a*) (λ (e0) (k0 (k* e0))))))))]
-          [(ch-op-e L e0 e1)
+          [(ch-op-e L e0 e1 e2)
            (A0 'oned e0 (λ (a0 k0)
                           (A0 'oner e1 (λ (a1 k1)
                                          (k (ch-op-e L a0 a1) (λ (e0) (k0 (k1 e0))))))))]
-          [(im-op-e L e0 e1)
+          [(im-op-e L e0 e1 e2)
            (A0 'ated e0 (λ (a0 k0)
                           (A0 'ator e1 (λ (a1 k1)
                                          (k (im-op-e a0 a1) (λ (e0) (k0 (k1 e0))))))))]

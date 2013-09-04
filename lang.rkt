@@ -37,8 +37,8 @@
 (struct handle-e exp (x e0 e1) #:transparent)
 (struct raise-e exp (e) #:transparent)
 (struct prim-e exp (id) #:transparent)
-(struct ch-op-e exp (f w) #:transparent)
-(struct im-op-e exp (f w) #:transparent)
+(struct ch-op-e exp (f neg pos) #:transparent)
+(struct im-op-e exp (f neg pos) #:transparent)
 
 (define (bind-free-with xs r ys)
   (let ([xs (foldl (λ (x xs) (set-remove xs x)) ys xs)])
@@ -73,10 +73,12 @@
     [(letrec-e _ xs r e0 e1)
      (bind-free-with xs r (set-union (free-variables e0)
                                      (free-variables e1)))]
-    [(ch-op-e _ e0 e1)
+    [(ch-op-e _ e0 e1 e2)
      (set-union (free-variables e0)
-                (free-variables e1))]
-    [(im-op-e _ e0 e1)
+                (free-variables e1)
+                (free-variables e2))]
+    [(im-op-e _ e0 e1 e2)
      (set-union (free-variables e0)
-                (free-variables e1))]))
+                (free-variables e1)
+                (free-variables e2))]))
 

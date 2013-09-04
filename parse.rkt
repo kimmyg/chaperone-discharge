@@ -7,7 +7,7 @@
 (provide parse
          unparse)
 
-(define primitives (apply seteq '(values not null null? cons pair? car cdr raise + - * < > = integer? boolean? chaperone-operator impersonate-operator)))
+(define primitives (apply seteq '(values not null null? cons pair? car cdr raise + - * < > = integer? boolean?)))
 
 (define fresh-label
   (let ([i 0])
@@ -96,14 +96,16 @@
                    (app-values-e (fresh-label)
                                  (inner e0 ρ)
                                  (inner e1 ρ))]
-                  [`(chaperone-operator ,e0 ,e1)
+                  [`(chaperone-operator ,e0 ,e1 ,e2)
                    (ch-op-e (fresh-label)
                             (inner e0 ρ)
-                            (inner e1 ρ))]
-                  [`(impersonate-operator ,e0 ,e1)
+                            (inner e1 ρ)
+                            (inner e2 ρ))]
+                  [`(impersonate-operator ,e0 ,e1 ,e2)
                    (im-op-e (fresh-label)
                             (inner e0 ρ)
-                            (inner e1 ρ))]
+                            (inner e1 ρ)
+                            (inner e2 ρ))]
                   [`(,e0 . ,es)
                    (app-e (fresh-label)
                           (inner e0 ρ)
@@ -127,9 +129,10 @@
      `(,(unparse e0) . ,(map unparse es))]
     [(bool-e L p)
      p]
-    [(ch-op-e L e0 e1)
+    [(ch-op-e L e0 e1 e2)
      `(chaperone-operator ,(unparse e0)
-                          ,(unparse e1))]
+                          ,(unparse e1)
+                          ,(unparse e2))]
     [(if-e L e0 e1 e2)
      `(if ,(unparse e0)
           ,(unparse e1)

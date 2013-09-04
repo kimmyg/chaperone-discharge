@@ -1,23 +1,24 @@
 #lang racket/base
 (require "parse.rkt"
          "A.rkt"
-         "small-step-analysis.rkt")
+         "big-step.rkt")
 
 (define p0
   '(letrec ([(fac) (λ (n)
                      (if (= n 0)
                          1
                          (* (- 0 n) (fac (- n 1)))))])
-     (let ([(fac-rec) (chaperone-operator fac (λ (n)
-                                                (if (or (not (integer? n))
-                                                        (< n 0))
-                                                    (raise 42)
-                                                    (values (λ (n)
-                                                              (if (or (not (integer? n))
-                                                                      (< n 1))
-                                                                  (raise 43)
-                                                                  n))
-                                                            n))))])
+     (let ([(fac-rec) (chaperone-operator fac
+                                          (λ (n)
+                                            (if (or (not (integer? n))
+                                                    (< n 0))
+                                                (raise 42)
+                                                n))
+                                          (λ (n)
+                                            (if (or (not (integer? n))
+                                                    (< n 1))
+                                                (raise 43)
+                                                n)))])
        (handle ([x x])
          (fac-rec 7)))))
 
@@ -31,21 +32,17 @@
                       (if (or (not (integer? n))
                               (< n 0))
                           (raise 42)
-                          (values (λ (n)
-                                    (if (or (not (integer? n))
-                                            (< n 1))
-                                        (raise 43)
-                                        n))
-                                  n))))])
+                          n))
+                    (λ (n)
+                      (if (or (not (integer? n))
+                              (< n 1))
+                          (raise 43)
+                          n)))])
      (handle ([x x])
        (fac 5))))
 
 (define p2
-  '(let ([(->) (λ (c0 c1)
-                 (λ (f)
-                   (chaperone-operator
-                    f
-                    (λ (v) (values c1 (c0 v))))))])
+  '(let ([(->) (λ (neg pos) (λ (f) (chaperone-operator f neg pos)))])
      (let ([(any/c) (λ (x) x)])
        (let ([(any) values])
          (let ([(boolean/c) (λ (p)
@@ -93,12 +90,7 @@
                            (f->n (c:! (n->f 6))))))))))))))))
 
 (define p3
-  '(let ([(->) (λ (a b)
-                 (λ (f)
-                   (chaperone-operator
-                    f
-                    (λ (v)
-                      (values b (a v))))))])
+  '(let ([(->) (λ (neg pos) (λ (f) (chaperone-operator f neg pos)))])
      (let ([(any/c) (λ (x) x)])
        (let ([(any) values])
          (let ([(boolean/c) (λ (p)
@@ -123,12 +115,7 @@
                  (n->f 0)))))))))
 
 (define p4
-  '(let ([(->) (λ (a b)
-                 (λ (f)
-                   (chaperone-operator
-                    f
-                    (λ (v)
-                      (values b (a v))))))])
+  '(let ([(->) (λ (neg pos) (λ (f) (chaperone-operator f neg pos)))])
      (let ([(any/c) (λ (x) x)])
        (let ([(any) values])
          (let ([(f) ((-> (-> any/c any) (any/c any))
@@ -138,11 +125,7 @@
 
 
 (define p5
-  '(let ([(->) (λ (c0 c1)
-                 (λ (f)
-                   (chaperone-operator
-                    f
-                    (λ (v) (values c1 (c0 v))))))])
+  '(let ([(->) (λ (neg pos) (λ (f) (chaperone-operator f neg pos)))])
      (let ([(nat/c) (λ (n)
                       (if (or (not (integer? n))
                               (< n 0))
@@ -163,16 +146,22 @@
 
 (require racket/match)
 
-(define (eval* p)
-  (collect-garbage)
-  (time
-   (match (eval p)
-     [(Σv cs κs σ v)
-      ((current-print) cs)
-      ((current-print) v)]
-     [(Σ! cs κs σ msg)
-      ((current-print) cs)
-      (displayln msg)])))
+#;(define (eval* p)
+    (collect-garbage)
+    (time
+     (match (eval p)
+       [(Σv cs κs σ v)
+        ((current-print) cs)
+        ((current-print) v)]
+       [(Σ! cs κs σ msg)
+        ((current-print) cs)
+        (displayln msg)])))
 
-(eval* (parse p2))
-(eval* (A (parse p2)))
+#;(eval* (parse p2))
+#;(eval* (A (parse p2)))
+
+(match (eval (parse p5))
+  [(cons σ v)
+   v])
+
+

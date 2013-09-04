@@ -10,133 +10,111 @@
 (provide eval)
 
 (define (eval e)
-  (define (app f vs σ)
+  (define (app σ f vs)
     (match f
       [(closure xs r ρ e)
-       (let-values ([(ρ σ) (bind ρ σ xs r vs)])
-         (inner e ρ σ))]
-      [(chaperone f w)
-       (match-let ([(cons σ (app value->list vs*)) (app w vs σ)])
-         (cond
-           [(= (length vs)
-               (length vs*))
-            (if (andmap chaperone-of? vs* vs)
-                (app f vs* σ)
-                (error 'eval "wrapper must at most chaperone arguments (made ~a into ~a)" vs vs*))]
-           [(= (add1 (length vs))
-               (length vs*))
-            (match-let ([(cons w* vs*) vs*])
-              (if (operator? w*)
-                  (if (andmap chaperone-of? vs* vs)
-                      (match-let* ([(cons σ (app value->list rs*)) (app f vs* σ)]
-                                   [(cons σ (app value->list rs)) (app w* rs* σ)])
-                        (if (= (length rs*)
-                               (length rs))
-                            (if (andmap chaperone-of? rs rs*)
-                                (cons σ (list->value rs))
-                                (error 'eval "results wrapper must at most chaperone arguments"))
-                            (error 'eval "results wrapper must produce same number of values as it consumed")))
-                      (error 'eval "wrapper must at most chaperone arguments"))
-                  (error 'eval "extra result must be operator ~a" w*)))]
-           [else
-            (error 'eval "wrapper must return same number or one additional result")]))]
-      [(impersonator f w)
-       (match-let ([(cons σ (app value->list vs*)) (app w vs σ)])
-         (cond
-           [(= (length vs)
-               (length vs*))
-            (app f vs* σ)]
-           [(= (add1 (length vs))
-               (length vs*))
-            (match-let ([(cons w* vs*) vs*])
-              (if (operator? w*)
-                  (match-let* ([(cons σ (app value->list rs*)) (app f vs* σ)]
-                               [(cons σ (app value->list rs)) (app w* rs* σ)])
-                    (if (= (length rs*)
-                           (length rs))
-                        (cons σ (list->value rs))
-                        (error 'eval "results wrapper must produce same number of values as it consumed")))
-                  (error 'eval "extra result must be operator ~a" w*)))]
-           [else
-            (error 'eval "wrapper must return same number or one additional result")]))]      
-      [(prim-e 'chaperone-operator)
-       (match vs
-         [(list (? operator? f) (? operator? w))
-          (if (arity=? (operator-arity f)
-                       (operator-arity w))
-              (cons σ (single-value (chaperone f w)))
-              (error 'eval "arity of wrapper must subsume arity of operator"))]
-         [_
-          (error 'eval "chaperone-operator requires two operators as arguments: ~a" vs)])]
-      [(prim-e 'impersonate-operator)
-       (match vs
-         [(list (? operator? f) (? operator? w))
-          (if (arity=? (operator-arity f)
-                       (operator-arity w))
-              (cons σ (single-value (impersonator f w)))
-              (error 'eval "arity of wrapper must subsume arity of operator"))]
-         [_
-          (error 'eval "impersonate-operator requires two operators as arguments: ~a" vs)])]
+       (let-values ([(σ ρ) (bind σ ρ xs r vs)])
+         (inner σ ρ e))]
+      [(chaperone L P f′ neg pos)
+       (match-let ([(cons σ (app value->list vs*)) (with-continuation-mark 'chaperone f (app σ neg vs))])
+         (if (= (length vs)
+                (length vs*))
+             (if (andmap chaperone-of? vs* vs)
+                 (match-let ([(cons σ (app value->list rs)) (app σ f′ vs*)])
+                   (match-let ([(cons σ (app value->list rs*)) (with-continuation-mark 'chaperone f (app σ pos rs))])
+                     (if (= (length rs)
+                            (length rs*))
+                         (if (andmap chaperone-of? rs* rs)
+                             (cons σ (list->value rs*))
+                             (error 'eval "wrapper must at most chaperone arguments (made ~a into ~a)" rs rs*))
+                         (error 'eval "wrapper must return same number of results as arguments given"))))
+                 (error 'eval "wrapper must at most chaperone arguments (made ~a into ~a)" vs vs*))
+             (error 'eval "wrapper must return same number of results as arguments given")))]
+      [(impersonator L P f neg pos)
+       (match-let ([(cons σ (app value->list vs*)) (app σ neg vs)])
+         (if (= (length vs)
+                (length vs*))
+             (match-let ([(cons σ (app value->list rs)) (app σ f vs*)])
+                   (match-let ([(cons σ (app value->list rs*)) (app σ pos rs)])
+                     (if (= (length rs)
+                            (length rs*))
+                         (cons σ (list->value rs*))
+                         (error 'eval "wrapper must return same number of results as arguments given"))))
+             (error 'eval "wrapper must return same number of results as arguments given")))]
       [(primitive name f arity)
        (if (arity-includes? arity (length vs))
            (cons σ (native-apply f vs))
            (error 'eval "~a cannot accept arity of ~a" name vs))]))
   
-  (define (inner* es ρ σ)
+  (define (inner* σ ρ es)
     (if (empty? es)
         (cons σ empty)
-        (match-let* ([(cons σ v) (inner (first es) ρ σ)]
-                     [(cons σ vs) (inner* (rest es) ρ σ)])
+        (match-let* ([(cons σ v) (inner σ ρ (first es))]
+                     [(cons σ vs) (inner* σ ρ (rest es))])
           (cons σ (cons v vs)))))
   
-  (define (inner e ρ σ)
+  (define (inner σ ρ e)
     (match e
-      [(app-e e es)
-       (match-let* ([(cons σ (app single-value! v)) (inner e ρ σ)]
-                    [(cons σ (app (λ (vs) (map single-value! vs)) vs)) (inner* es ρ σ)])
-         (app v vs σ))]
-      [(if-e e0 e1 e2)
-       (match-let ([(cons σ (app single-value! v)) (inner e0 ρ σ)])
-         (inner (if v e1 e2) ρ σ))]
-      [(int-e i)
-       (cons σ (single-value i))]
-      [(bool-e p)
+      [(app-e _ e es)
+       (match-let* ([(cons σ (app single-value! v)) (inner σ ρ e)]
+                    [(cons σ (app (λ (vs) (map single-value! vs)) vs)) (inner* σ ρ es)])
+         (app σ v vs))]
+      [(bool-e _ p)
        (cons σ (single-value p))]
-      [(lam-e xs r e)
+      [(ch-op-e L e0 e1 e2)
+       (match-let* ([(cons σ (app single-value! v0)) (inner σ ρ e0)]
+                    [(cons σ (app single-value! v1)) (inner σ ρ e1)]
+                    [(cons σ (app single-value! v2)) (inner σ ρ e2)])
+         (cons σ (single-value
+                  (chaperone
+                   L
+                   (continuation-mark-set-first
+                    (current-continuation-marks) 'chaperone #f)
+                   v0 v1 v2))))]
+      [(if-e _ e0 e1 e2)
+       (match-let ([(cons σ (app single-value! v)) (inner σ ρ e0)])
+         (inner σ ρ (if v e1 e2)))]
+      [(int-e _ i)
+       (cons σ (single-value i))]
+      [(lam-e _ xs r e)
        (cons σ (single-value (closure xs r ρ e)))]
-      [(let-e xs r e0 e1)
-       (match-let ([(cons σ (app value->list vs)) (inner e0 ρ σ)])
-         (let-values ([(ρ σ) (bind ρ σ xs r vs)])
-           (inner e1 ρ σ)))]
-      [(letrec-e xs r e0 e1)
+      [(let-e _ xs r e0 e1)
+       (match-let ([(cons σ (app value->list vs)) (inner σ ρ e0)])
+         (let-values ([(σ ρ) (bind σ ρ xs r vs)])
+           (inner σ ρ e1)))]
+      [(letrec-e _ xs r e0 e1)
        (let ([ρ (pre-bind ρ xs r)])
-         (match-let ([(cons σ (app value->list vs)) (inner e0 ρ σ)])
-           (let ([σ (rec-bind ρ σ xs r vs)])
-             (inner e1 ρ σ))))]
-      [(handle-e x e0 e1)
+         (match-let ([(cons σ (app value->list vs)) (inner σ ρ e0)])
+           (let ([σ (rec-bind σ ρ xs r vs)])
+             (inner σ ρ e1))))]
+      [(handle-e _ x e0 e1)
        (with-handlers ([ERROR? (λ (e)
                                  (match-let ([(ERROR (cons σ (app single-value! v))) e])
-                                   (let-values ([(ρ σ) (bind ρ σ (list x) #f (list v))])
-                                     (inner e0 ρ σ))))])
-         (inner e1 ρ σ))]
-      [(or-e e0 e1)
-       (match-let ([(cons σ (app single-value! v)) (inner e0 ρ σ)])
+                                   (let-values ([(σ ρ) (bind σ ρ (list x) #f (list v))])
+                                     (inner σ ρ e0))))])
+         (inner σ ρ e1))]
+      [(or-e _ e0 e1)
+       (match-let ([(cons σ (app single-value! v)) (inner σ ρ e0)])
          (if v
              (cons σ (single-value v))
-             (inner e1 ρ σ)))]
-      [(raise-e e)
-       (raise (ERROR (inner e ρ σ)))]
-      [(prim-e '=)
-       (cons σ (single-value (primitive '= = 2)))]
-      [(prim-e '<)
-       (cons σ (single-value (primitive '< < 2)))]
-      [(prim-e '*)
-       (cons σ (single-value (primitive '* * 2)))]
-      [(prim-e '+)
-       (cons σ (single-value (primitive '+ + 2)))]
-      [(prim-e '-)
-       (cons σ (single-value (primitive '- - 2)))]
-      [(prim-e 'chaperone-operator)
+             (inner σ ρ e1)))]
+      [(raise-e _ e)
+       (raise (ERROR (inner σ ρ e)))]
+      [(prim-e _ id)
+       (cons σ
+             (single-value
+              (case id
+                [(=) (primitive '= = 2)]
+                [(<) (primitive '< < 2)]
+                [(*) (primitive '* * 2)]
+                [(+) (primitive '+ + 2)]
+                [(-) (primitive '- - 2)]
+                [(boolean?) (primitive 'boolean? boolean? 1)]
+                [(integer?) (primitive 'integer? integer? 1)]
+                [(not) (primitive 'not not 1)]
+                [(values) (primitive 'values values (arity-at-least 0))]
+                [else (error 'eval "unknown primitive ~a" id)])))]
+      #;[(prim-e 'chaperone-operator)
        (cons σ (single-value
                 (primitive 'chaperone-operator
                            (λ (f w)
@@ -148,7 +126,7 @@
                                      (error 'eval "operator and wrapper must have same arity"))
                                  (error 'eval "chaperone-operator must be applied to operators")))
                            2)))]
-      [(prim-e 'impersonate-operator)
+      #;[(prim-e 'impersonate-operator)
        (cons σ (single-value
                 (primitive 'impersonate-operator
                            (λ (f w)
@@ -159,18 +137,11 @@
                                      (impersonator f w)
                                      (error 'eval "operator and wrapper must have same arity"))
                                  (error 'eval "impersonate-operator must be applied to operators")))
-                           2)))]
-      [(prim-e 'integer?)
-       (cons σ (single-value (primitive 'integer? integer? 1)))]
-      [(prim-e 'not)
-       (cons σ (single-value (primitive 'not not 1)))]
-      [(prim-e 'values)
-       (cons σ (single-value (primitive 'values values (arity-at-least 0))))]
-      [(ref-e x)
+                           2)))]   
+      [(ref-e _ x)
        (if (hash-has-key? ρ x)
            (cons σ (single-value (hash-ref σ (hash-ref ρ x))))
            (error 'eval "unbound variable ~a" x))]))
-  (inner e (hasheq) (hasheqv)))
-
+  (inner (hasheqv) (hasheq) e))
 
 

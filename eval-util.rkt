@@ -24,16 +24,17 @@
 
 (define alloc
   (let ([i 0])
-    (λ (x) x)))
-;      (begin0
-;        i
-;        (set! i (add1 i))))))
+    ;(λ (x) x)))
+    (λ (x)
+      (begin0
+        i
+        (set! i (add1 i))))))
 
 (struct ERROR (state) #:transparent)
 
 (struct closure (xs r ρ e) #:transparent)
-(struct chaperone (L f w) #:transparent)
-(struct impersonator (L f w) #:transparent)
+(struct chaperone (L P f neg pos) #:transparent)
+(struct impersonator (L P f neg pos) #:transparent)
 (struct primitive (id f +) #:transparent)
 
 (define (chaperone-of? v0 v1)
@@ -41,8 +42,10 @@
     [(and (chaperone? v0)
           (chaperone? v1))
      (or (equal? v0 v1)
-         (and (chaperone-of? (chaperone-w v0)
-                             (chaperone-w v1))
+         (and (chaperone-of? (chaperone-neg v0)
+                             (chaperone-neg v1))
+              (chaperone-of? (chaperone-pos v0)
+                             (chaperone-pos v1))
               (chaperone-of? (chaperone-f v0)
                              (chaperone-f v1)))
          (chaperone-of? (chaperone-f v0) v1))]
@@ -57,10 +60,10 @@
   (match-lambda
     [(closure xs r ρ e)
      (if r (arity-at-least (length xs)) (length xs))]
-    [(chaperone _ f w)
-     (operator-arity w)]
-    [(impersonator _ f w)
-     (operator-arity w)]
+    [(chaperone _ _ f neg pos)
+     (operator-arity f)]
+    [(impersonator _ _ f neg pos)
+     (operator-arity f)]
     [(primitive id f +)
      +]))
 
@@ -90,11 +93,15 @@
                                ([x xs]
                                 [v (take vs n)])
                                (let ([α (alloc x)])
-                                 (values (hash-update σ α (λ (s) (set-add s v)) (set))
+                                 (values (hash-set σ α v)
+                                         (hash-set ρ x α))
+                                 #;(values (hash-update σ α (λ (s) (set-add s v)) (set))
                                          (hash-set ρ x α))))]
                       [(σ ρ) (if r
                                  (let ([α (alloc r)])
-                                   (values (hash-update σ α (λ (s) (set-add s (drop vs n))) (set))
+                                   (values (hash-set σ α (drop vs n))
+                                           (hash-set ρ r α))
+                                   #;(values (hash-update σ α (λ (s) (set-add s (drop vs n))) (set))
                                            (hash-set ρ r α)))
                                  (values σ ρ))])
           (values σ ρ)))
