@@ -1,45 +1,46 @@
 #lang racket/base
 (require "parse.rkt"
-         "small-step.rkt")
+         "A.rkt"
+         "small-step-analysis.rkt")
 
-#;(eval (parse '(letrec ([(fac) (λ (n)
-                                  (if (= n 0)
-                                      1
-                                      (* (- 0 n) (fac (- n 1)))))])
-                  (let ([(fac-rec) (chaperone-operator fac (λ (n)
-                                                             (if (or (not (integer? n))
-                                                                     (< n 0))
-                                                                 (raise 42)
-                                                                 (values (λ (n)
-                                                                           (if (or (not (integer? n))
-                                                                                   (< n 1))
-                                                                               (raise 43)
-                                                                               n))
-                                                                         n))))])
-                    (handle ([x x])
-                            (fac-rec 7))))))
+(define p0
+  '(letrec ([(fac) (λ (n)
+                     (if (= n 0)
+                         1
+                         (* (- 0 n) (fac (- n 1)))))])
+     (let ([(fac-rec) (chaperone-operator fac (λ (n)
+                                                (if (or (not (integer? n))
+                                                        (< n 0))
+                                                    (raise 42)
+                                                    (values (λ (n)
+                                                              (if (or (not (integer? n))
+                                                                      (< n 1))
+                                                                  (raise 43)
+                                                                  n))
+                                                            n))))])
+       (handle ([x x])
+         (fac-rec 7)))))
 
-#;(eval (parse '(letrec ([(fac) (chaperone-operator
-                                 (λ (n)
-                                   (if (= n 0)
-                                       -1
-                                       (* n (fac (- n 1)))))
-                                 (λ (n)
-                                   (if (or (not (integer? n))
-                                           (< n 0))
-                                       (raise 42)
-                                       (values (λ (n)
-                                                 (if (or (not (integer? n))
-                                                         (< n 1))
-                                                     (raise 43)
-                                                     n))
-                                               n))))])
-                  (handle ([x x])
-                          (fac 5)))))
+(define p1
+  '(letrec ([(fac) (chaperone-operator
+                    (λ (n)
+                      (if (= n 0)
+                          -1
+                          (* n (fac (- n 1)))))
+                    (λ (n)
+                      (if (or (not (integer? n))
+                              (< n 0))
+                          (raise 42)
+                          (values (λ (n)
+                                    (if (or (not (integer? n))
+                                            (< n 1))
+                                        (raise 43)
+                                        n))
+                                  n))))])
+     (handle ([x x])
+       (fac 5))))
 
-; identify the chaperone with the value that it's wrapping!?
-
-(define factp
+(define p2
   '(let ([(->) (λ (c0 c1)
                  (λ (f)
                    (chaperone-operator
@@ -91,7 +92,7 @@
                                                 ((c:* n) (c:! (c:sub1 n))))))])
                            (f->n (c:! (n->f 6))))))))))))))))
 
-(define testp
+(define p3
   '(let ([(->) (λ (a b)
                  (λ (f)
                    (chaperone-operator
@@ -121,7 +122,7 @@
                                              (λ (x) (f (fn-1 x)))))))))])
                  (n->f 0)))))))))
 
-(define testp2
+(define p4
   '(let ([(->) (λ (a b)
                  (λ (f)
                    (chaperone-operator
@@ -134,46 +135,44 @@
                      (λ (x) x))])
            (f f))))))
 
-#;(require "eval-util.rkt"
-           "lang.rkt")
-
-#;(chaperone-of?
-   (chaperone (chaperone (closure '(x) #f #hasheq() (ref-e 'x))
-                         (closure '(f) #f #hasheq((any/c . 0))
-                                  (app-e (prim-e 'chaperone-operator)
-                                         (list (ref-e 'f)
-                                               (lam-e '(v) #f (app-e (ref-e 'any/c)
-                                                                     (list (ref-e 'v))))))))
-              (closure '(v) #f #hasheq((any/c . 0)) 
-                       (app-e (ref-e 'any/c)
-                              (list (ref-e 'v)))))
-   (chaperone (closure '(x) #f #hasheq() (ref-e 'x))
-              (closure '(f) #f #hasheq((any/c . 0))
-                       (app-e (prim-e 'chaperone-operator)
-                              (list (ref-e 'f)
-                                    (lam-e '(v) #f (app-e (ref-e 'any/c)
-                                                          (list (ref-e 'v)))))))))
 
 
-#;'(chaperone-operator
-  (λ (x) x)
-  (λ (f)
-    (values (-> any/c any)
-            (chaperone-operator
-             f
-             (λ (v)
-               (values any
-                       (any/c v)))))))
-
-#;'(λ (a (-> any/c any))
-   (λ (f)
-     (chaperone-operator
-      f
-      (λ (v)
-        (values (-> any/c any) (a v))))))
+(define p5
+  '(let ([(->) (λ (c0 c1)
+                 (λ (f)
+                   (chaperone-operator
+                    f
+                    (λ (v) (values c1 (c0 v))))))])
+     (let ([(nat/c) (λ (n)
+                      (if (or (not (integer? n))
+                              (< n 0))
+                          (raise 42)
+                          n))])
+       (let ([(positive-nat/c) (λ (n)
+                                 (if (or (not (integer? n))
+                                         (< n 1))
+                                     (raise 43)
+                                     n))])
+         (letrec ([(fact) ((-> nat/c positive-nat/c)
+                           (λ (n)
+                             (if (= n 0)
+                                 1
+                                 (* n (fact (- n 1))))))])
+           (handle ([x x])
+             (fact 7)))))))
 
 (require racket/match)
-(time
- (match (eval (parse factp))
-  [(cons σ v)
-   v]))
+
+(define (eval* p)
+  (collect-garbage)
+  (time
+   (match (eval p)
+     [(Σv cs κs σ v)
+      ((current-print) cs)
+      ((current-print) v)]
+     [(Σ! cs κs σ msg)
+      ((current-print) cs)
+      (displayln msg)])))
+
+(eval* (parse p2))
+(eval* (A (parse p2)))
