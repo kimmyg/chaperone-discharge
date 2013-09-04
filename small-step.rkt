@@ -207,7 +207,9 @@
                 (length vs*))
              (match-let ([(cons w* vs*) vs*])
                (if (operator? w*)
-                   (app (cons (chap-ults-κ w*) κs) σ op vs*)
+                   (if (andmap chaperone-of? vs* vs)
+                       (app (cons (chap-ults-κ w*) κs) σ op vs*)
+                       (Σ! κs σ (format "chaperone did more than chaperone arguments! ~a ~a" vs vs*)))
                    (Σ! κs σ "extra argument must be an operator")))]
             [else
              (Σ! κs σ "arguments wrapper must return same number or one additional result")]))]                     
