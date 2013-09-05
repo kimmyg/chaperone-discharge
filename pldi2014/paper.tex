@@ -11,7 +11,7 @@
 \usepackage{amsthm}
 \usepackage{slatex}
 
-
+\mathchardef\mhyphen="2D
 \newtheorem{thm}{Theorem}
 
 \special{papersize=8.5in,11in}
@@ -136,29 +136,21 @@ Finally,
 binds the first result of \scheme{(f x)} to \scheme{a} and a list of all remaining results to \scheme{b}.
 
 This is the grammar for chapcalc0.
-\begin{schemedisplay}
-(grammar
-  [e ((e e ...)
-      (app-values e e)
-      (values e ...)
-      (chaperone-operator e e e)
-      (impersonate-operator e e e)
-      (let ([s e]) e)
-      (letrec ([s e]) e)
-      (λ s e)
-      (if e e e)
-      (or e e)
-      (and e e)
-      (raise)
-      x
-      v
-      p)]
-  [p (= < + - * integer? boolean? pair? null? cons car cdr null)]
-  [v (n b)]
-  [n (0 1 -1 2 -2 ...)]
-  [b (#t #f)]
-  [s (x () (x . s))])
-\end{schemedisplay}
+\input{calc0}
+
+programs either evaluate to a value, evaluate to an error, or diverge.
+our theorem only deals with chaperones which don't affect whether the program evaluates to a value?
+a program could diverge on chaperone creation (evaluating the guards) or chaperone application (applying the guards).
+this is undecidable in general.
+it is possible to remove a chaperone and have some programs that errored out evaluate to a value (because the guards may artificially restrict the domain or codomain of the function).
+it is possible to remove a chaperone and have some programs that errored out diverge (because the error came before divergence).
+if a program evaluates to a value then no chaperone errored out and no chaperone diverged.
+we also are only changing chaperones that don't error in any circumstances.
+therefore, if a program evaluates to a value with a given input before erasure or promotion, it will evaluate to that value after erasure or promotion.
+if a program evaluates to an error with a given input, it will evaluate to an error after, since we will not erase or promote a chaperone that /could/ throw an error, for a sound analysis.
+however, programs that would have diverged otherwise may evaluate to a value or an error.
+
+$\longrightarrow$
 
 Expressions \scheme{e} have the following forms.
 Procedure applications of the form \scheme{(e e ...)} apply a procedure to a static sequence of arguments.
@@ -241,32 +233,6 @@ Thm: a good1 chaperone-installment site can be promoted to an impersonator-insta
 Def: call a chaperone good2 wrt a program if its application never raises a runtime (arity) error, its wrapper never raises.
 Def: call a chaperone good3 wrt a program if it is good2 and the chaperones it installed, if any, are good3.
 Thm: if all chaperones which flow from a chaperone-installment site are good3, that site can be replaced with its first argument (the until-now-wrapped value).
-
-
-
-
-
-\begin{schemedisplay}
-(grammar
-  [e ((e e ...)
-      (app-values e e)
-      (chaperone-operator e e)
-      (impersonate-operator e e)
-      (let ([s e]) e)
-      (letrec ([s e]) e)
-      (if e e e)
-      (or e e)
-      (and e e)
-      (raise e)
-      (handle ([x e]) e)
-      (λ s e)
-      x)]
-  [p (= < + - * integer? boolean?)]
-  [v (n b)]
-  [n (0 1 -1 2 -2 ...)]
-  [b (#t #f)]
-  [s (x () (x . s))])
-\end{schemedisplay}
 
 %This amounts to the possible arisal of two different types of errors: the first type is the violation of a contract assertion--in this case, blame is determined to fall on either the caller or the callee (the wrapped function itself); the second type is a misbehaving chaperone: it does not return the correct number of values or it does not only chaperone the arguments.
 
