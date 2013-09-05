@@ -137,17 +137,7 @@
        [(or-e _ e0 e1)
         (Σe (cons (or-κ ρ e1) κs) σ ρ e0)]
        [(prim-e _ id)
-        (Σv κs σ (single-value (case id
-                                 [(=) (primitive '= = 2)]
-                                 [(<) (primitive '< < 2)]
-                                 [(*) (primitive '* * 2)]
-                                 [(+) (primitive '+ + 2)]
-                                 [(-) (primitive '- - 2)]
-                                 [(boolean?) (primitive 'boolean? boolean? 1)]
-                                 [(integer?) (primitive 'integer? integer? 1)]
-                                 [(not) (primitive 'not not 1)]
-                                 [(values) (primitive 'values values (arity-at-least 0))]
-                                 [else (error 'eval "unknown primitive ~a" id)])))]
+        (Σv κs σ (single-value (id->primitive id)))]
        [(raise-e _ e)
         (Σe (cons (raise-κ) κs) σ ρ e)]
        [(ref-e _ x)

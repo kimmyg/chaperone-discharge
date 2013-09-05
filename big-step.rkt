@@ -101,19 +101,7 @@
       [(raise-e _ e)
        (raise (ERROR (inner σ ρ e)))]
       [(prim-e _ id)
-       (cons σ
-             (single-value
-              (case id
-                [(=) (primitive '= = 2)]
-                [(<) (primitive '< < 2)]
-                [(*) (primitive '* * 2)]
-                [(+) (primitive '+ + 2)]
-                [(-) (primitive '- - 2)]
-                [(boolean?) (primitive 'boolean? boolean? 1)]
-                [(integer?) (primitive 'integer? integer? 1)]
-                [(not) (primitive 'not not 1)]
-                [(values) (primitive 'values values (arity-at-least 0))]
-                [else (error 'eval "unknown primitive ~a" id)])))]
+       (cons σ (single-value (id->primitive id)))]
       #;[(prim-e 'chaperone-operator)
        (cons σ (single-value
                 (primitive 'chaperone-operator

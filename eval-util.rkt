@@ -20,7 +20,8 @@
          arity-compatible?
          native-apply
          operator?
-         restrict)
+         restrict
+         id->primitive)
 
 (define alloc
   (let ([i 0])
@@ -96,13 +97,13 @@
                                  (values (hash-set σ α v)
                                          (hash-set ρ x α))
                                  #;(values (hash-update σ α (λ (s) (set-add s v)) (set))
-                                         (hash-set ρ x α))))]
+                                           (hash-set ρ x α))))]
                       [(σ ρ) (if r
                                  (let ([α (alloc r)])
                                    (values (hash-set σ α (drop vs n))
                                            (hash-set ρ r α))
                                    #;(values (hash-update σ α (λ (s) (set-add s (drop vs n))) (set))
-                                           (hash-set ρ r α)))
+                                             (hash-set ρ r α)))
                                  (values σ ρ))])
           (values σ ρ)))
       (error 'bind "~a ~a ~a" xs r vs)))
@@ -134,4 +135,23 @@
 (define (restrict ρ xs)
   (for/hasheq ([x (in-set xs)])
     (values x (hash-ref ρ x))))
+
+(define (id->primitive id)
+  (case id
+    [(=) (primitive '= = 2)]
+    [(<) (primitive '< < 2)]
+    [(*) (primitive '* * 2)]
+    [(+) (primitive '+ + 2)]
+    [(-) (primitive '- - 2)]
+    [(null) (primitive 'null null #f)]
+    [(null?) (primitive 'null? null? 1)]
+    [(cons) (primitive 'cons cons 2)]
+    [(pair?) (primitive 'pair? pair? 2)]
+    [(car) (primitive 'car car 1)]
+    [(cdr) (primitive 'cdr cdr 1)]
+    [(boolean?) (primitive 'boolean? boolean? 1)]
+    [(integer?) (primitive 'integer? integer? 1)]
+    [(not) (primitive 'not not 1)]
+    [(values) (primitive 'values values (arity-at-least 0))]
+    [else (error 'id->primitive "unknown primitive ~a" id)]))
 
