@@ -25,25 +25,36 @@
 (define ((go4 cs) a)
   (cond
     [(symbol? a)
-     (cond
-       [(eq? a '...)
-        "\\dots"]
-       [(eq? a 'λ)
-        "\\lambda"]
-       [(set-member? cs a)
-        (symbol->string a)]
-       [else
-        (go5 a)])]
+     (let ([b (symbol->string a)])
+       (cond
+         [(string=? (substring b 0 1) "\\")
+          b]
+         [(set-member? cs a)
+          b]
+         [else
+          (go5 a)]))]
     [(boolean? a)
      (if a "\\mathrm{\\#t}" "\\mathrm{\\#f}")]
     [(integer? a)
      (number->string a)]
-    [(or (pair? a)
-         (null? a))
-     (string-append
-      "("
-      (string-join ((go4* cs) a) "\\,")
-      ")")]))
+    [(pair? a)
+     (if (eq? (car a) 'LaTeX)
+         (string-append
+          "{"
+          ((go4 cs) (caddr a))
+          "}"
+          (symbol->string (cadr a))
+          "{"
+          ((go4 cs) (cadddr a))
+          "}")
+         (string-append
+          "("
+          (string-join ((go4* cs) a) "\\,")
+          ")"))]
+    [(null? a)
+     "()"]
+    [else
+     (error 'go4 "not in it ~a" a)]))
 
 (define ((go4* cs) a)
   (cond
@@ -64,6 +75,8 @@
           (string-split b "-")
           "\\mhyphen ")
          "}"))))
+
+(current-command-line-arguments (vector "calc0.sexp"))
 
 (for ([filepath (in-vector (current-command-line-arguments))])
   (with-output-to-file (path-replace-suffix filepath ".tex")
