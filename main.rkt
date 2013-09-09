@@ -12,15 +12,14 @@
                                           (λ (n)
                                             (if (or (not (integer? n))
                                                     (< n 0))
-                                                (raise 42)
+                                                (raise)
                                                 n))
                                           (λ (n)
                                             (if (or (not (integer? n))
                                                     (< n 1))
-                                                (raise 43)
+                                                (raise)
                                                 n)))])
-       (handle ([x x])
-         (fac-rec 7)))))
+       (fac-rec 7))))
 
 (define p1
   '(letrec ([(fac) (chaperone-operator
@@ -31,15 +30,14 @@
                     (λ (n)
                       (if (or (not (integer? n))
                               (< n 0))
-                          (raise 42)
+                          (raise)
                           n))
                     (λ (n)
                       (if (or (not (integer? n))
                               (< n 1))
-                          (raise 43)
+                          (raise)
                           n)))])
-     (handle ([x x])
-       (fac 5))))
+     (fac 5)))
 
 (define p2
   '(let ([(->) (λ (neg pos) (λ (f) (chaperone-operator f neg pos)))])
@@ -47,12 +45,12 @@
        (let ([(any) values])
          (let ([(boolean/c) (λ (p)
                               (if (not (boolean? p))
-                                  (raise 59)
+                                  (raise)
                                   p))])
            (let ([(nat/c) (λ (n)
                             (if (or (not (integer? n))
                                     (< n 0))
-                                (raise 43)
+                                (raise)
                                 n))])
              (let ([(church/c) (-> (-> any/c any)
                                    (-> any/c any))])
@@ -87,7 +85,7 @@
                                             (if (c:zero? n)
                                                 (λ (f) f)
                                                 ((c:* n) (c:! (c:sub1 n))))))])
-                           (f->n (c:! (n->f 6))))))))))))))))
+                           (f->n (c:! (n->f 3))))))))))))))))
 
 (define p3
   '(let ([(->) (λ (neg pos) (λ (f) (chaperone-operator f neg pos)))])
@@ -95,12 +93,12 @@
        (let ([(any) values])
          (let ([(boolean/c) (λ (p)
                               (if (not (boolean? p))
-                                  (raise 59)
+                                  (raise)
                                   p))])
            (let ([(nat/c) (λ (n)
                             (if (or (not (integer? n))
                                     (< n 0))
-                                (raise 43)
+                                (raise)
                                 n))])
              (let ([(church/c) (-> (-> any/c any)
                                    (-> any/c any))])
@@ -129,39 +127,26 @@
      (let ([(nat/c) (λ (n)
                       (if (or (not (integer? n))
                               (< n 0))
-                          (raise 42)
+                          (raise)
                           n))])
        (let ([(positive-nat/c) (λ (n)
                                  (if (or (not (integer? n))
                                          (< n 1))
-                                     (raise 43)
+                                     (raise)
                                      n))])
          (letrec ([(fact) ((-> nat/c positive-nat/c)
                            (λ (n)
                              (if (= n 0)
                                  1
                                  (* n (fact (- n 1))))))])
-           (handle ([x x])
-             (fact 7)))))))
+           (fact 7))))))
 
 (require racket/match)
 
-#;(define (eval* p)
-    (collect-garbage)
-    (time
-     (match (eval p)
-       [(Σv cs κs σ v)
-        ((current-print) cs)
-        ((current-print) v)]
-       [(Σ! cs κs σ msg)
-        ((current-print) cs)
-        (displayln msg)])))
-
-#;(eval* (parse p2))
-#;(eval* (A (parse p2)))
-
-(match (eval (parse p2))
+(match (eval (parse p5))
   [(cons σ v)
-   v])
+   v]
+  [e
+   e])
 
 

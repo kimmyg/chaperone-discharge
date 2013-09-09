@@ -11,104 +11,69 @@
 
 (struct κ () #:transparent)
 
-(struct chap-κ κ (op) #:transparent)
-(struct chap-neg-ults-κ chap-κ (f pos vs) #:transparent)
-(struct chap-f-ults-κ chap-κ (pos) #:transparent)
-(struct chap-pos-ults-κ chap-κ (vs) #:transparent)
+(struct chap-cre-κ κ (L) #:transparent)
+(struct chap-f-κ chap-cre-κ (ρ neg pos) #:transparent)
+(struct chap-neg-κ chap-cre-κ (f ρ pos) #:transparent)
+(struct chap-pos-κ chap-cre-κ (f neg) #:transparent)
+
+(struct chap-app-κ κ (L) #:transparent)
+(struct chap-neg-ults-κ chap-app-κ (f pos vs) #:transparent)
+(struct chap-f-ults-κ chap-app-κ (pos) #:transparent)
+(struct chap-pos-ults-κ chap-app-κ (vs) #:transparent)
 
 (struct app-rands-κ κ (op vs ρ es) #:transparent)
 (struct app-rator-κ κ (ρ es) #:transparent)
-(struct chap-f-κ κ (L ρ neg pos) #:transparent)
-(struct chap-neg-κ κ (L f ρ pos) #:transparent)
-(struct chap-pos-κ κ (L f neg) #:transparent)
-(struct chap-ults-κ κ (w*) #:transparent)
-(struct chap-wrap-κ κ (vs*) #:transparent)
-(struct handle-κ κ (x ρ e) #:transparent)
+(struct handle-κ κ (ρ e) #:transparent)
 (struct if-κ κ (ρ e0 e1) #:transparent)
 (struct let-κ κ (xs r ρ e) #:transparent)
 (struct letrec-κ κ (xs r ρ e) #:transparent)
 (struct or-κ κ (ρ e) #:transparent)
-(struct raise-κ κ () #:transparent)
 
 (struct Σ (κs σ) #:transparent)
 (struct Σe Σ (ρ e) #:transparent)
 (struct Σv Σ (v) #:transparent)
-(struct Σ! Σ (msg) #:transparent)
+(struct Σ! Σ (e) #:transparent) ; contains blame
 
 (define (app κs σ op vs)
   (match op
     [(chaperone L P f neg pos)
-     (app (cons (chap-neg-ults-κ op f pos vs) κs) σ neg vs)]
+     (app (cons (chap-neg-ults-κ L f pos vs) κs) σ neg vs)]
     [(closure xs r ρ e)
      (let-values ([(σ ρ) (bind σ ρ xs r vs)])
        (Σe κs σ ρ e))]
     [(primitive id f +)
      (if (arity-includes? + (length vs))
-         (with-handlers ([exn:fail:contract? (λ (_) (Σ! κs σ (format "native call error for ~a" id)))])
+         (with-handlers ([λC:error? (λ (e) (Σ! κs σ (assign-blame κs)))])
            (Σv κs σ (native-apply f vs)))
-         (Σ! κs σ (format "arity of primitive operator ~a incompatible with operands ~a" id vs)))]))
+         (Σ! κs σ (assign-blame κs)))]))
 
-#;(define (unpspec xs r)
-    (if (empty? xs)
-        (or r empty)
-        (cons (first xs) (unpspec (rest xs) r))))
-
-
-
-#;(define (subst/shadow σ ρ xs r e)
-    (let* ([ρ (for/fold ([ρ ρ])
-                ([x (in-list xs)])
-                (hash-remove ρ x))]
-           [ρ (if r
-                  (hash-remove ρ r)
-                  ρ)])
-      (subst σ ρ e)))
-
-#;(define (subst σ ρ e)
-    (if (or (int-e? e)
-            (prim-e? e))
-        e
-        (match e
-          [(app-e e es)
-           (app-e (subst σ ρ e)
-                  (map (λ (e) (subst σ ρ e)) es))]
-          [(if-e e0 e1 e2)
-           (if-e (subst σ ρ e0)
-                 (subst σ ρ e1)
-                 (subst σ ρ e2))]
-          [(lam-e xs r e)
-           (lam-e xs r (subst/shadow σ ρ xs r e))]
-          [(let-e xs r e0 e1)
-           (let-e xs r (subst σ ρ e0) (subst/shadow σ ρ xs r e1))]
-          [(or-e e0 e1)
-           (or-e (subst σ ρ e0)
-                 (subst σ ρ e1))]
-          [(raise-e e)
-           (raise-e (subst σ ρ e))]
-          [(ref-e x)
-           (if (and (hash-has-key? ρ x)
-                    (hash-has-key? σ (hash-ref ρ x)))
-               (reify σ (hash-ref σ (hash-ref ρ x)))
-               (ref-e x))])))
-
-#;(define (reify σ v)
-    (match v
-      [(chaperone f w)
-       (app-e (prim-e 'chaperone-operator)
-              (list (reify σ f)
-                    (reify σ w)))]
-      [(closure xs r ρ e)
-       (lam-e xs r (subst σ ρ e))]
-      [(primitive id f +)
-       (prim-e id)]))
-
-(define (active-chaperone κs)
+(define (inherit-blame κs)
   (if (empty? κs)
       #f
       (match-let ([(cons κ κs) κs])
-        (if (chap-κ? κ)
-            (chap-κ-op κ)
-            (active-chaperone κs)))))
+        (cond
+          [(chap-cre-κ? κ)
+           (cons '• (chap-cre-κ-L κ))]
+          [(chap-neg-ults-κ? κ)
+           (cons '- (chap-app-κ-L κ))]
+          [(chap-pos-ults-κ? κ)
+           (cons '+ (chap-app-κ-L κ))]
+          [else
+           (inherit-blame κs)]))))
+
+(define (assign-blame κs)
+  (if (empty? κs)
+      (λC:error)
+      (match-let ([(cons κ κs) κs])
+        (cond
+          [(chap-cre-κ? κ)
+           (λC:blame (chap-cre-κ-L κ))]
+          [(chap-neg-ults-κ? κ)
+           (λC:blame- (chap-app-κ-L κ))]
+          [(chap-pos-ults-κ? κ)
+           (λC:blame+ (chap-app-κ-L κ))]
+          [else
+           (assign-blame κs)]))))
 
 (define step
   (match-lambda
@@ -120,15 +85,12 @@
         (Σv κs σ (single-value p))]
        [(ch-op-e L f neg pos)
         (Σe (cons (chap-f-κ L ρ neg pos) κs) σ ρ f)]
-       [(handle-e _ x e0 e1)
-        (Σe (cons (handle-κ x ρ e0) κs) σ ρ e1)]
        [(if-e _ e0 e1 e2)
         (Σe (cons (if-κ ρ e1 e2) κs) σ ρ e0)]
        [(int-e _ i)
         (Σv κs σ (single-value i))]
-       [(lam-e _ xs r e)
-        (let ([ρ (restrict ρ (bind-free-with xs r (free-variables e)))])
-          (Σv κs σ (single-value (closure xs r ρ e))))]
+       [(lam-e _ xs r e0)
+        (Σv κs σ (single-value (closure xs r (restrict ρ (free-variables e)) e0)))]
        [(let-e _ xs r e0 e1)
         (Σe (cons (let-κ xs r ρ e1) κs) σ ρ e0)]
        [(letrec-e _ xs r e0 e1)
@@ -138,8 +100,6 @@
         (Σe (cons (or-κ ρ e1) κs) σ ρ e0)]
        [(prim-e _ id)
         (Σv κs σ (single-value (id->primitive id)))]
-       [(raise-e _ e)
-        (Σe (cons (raise-κ) κs) σ ρ e)]
        [(ref-e _ x)
         (Σv κs σ (single-value (hash-ref σ (hash-ref ρ x))))]
        )]
@@ -167,30 +127,30 @@
           (Σe (cons (chap-pos-κ L f neg) κs) σ ρ pos))]
        [(chap-pos-κ L f neg)
         (let ([pos (single-value! v)])
-          (Σv κs σ (single-value (chaperone L (active-chaperone κs) f neg pos))))]
-       [(chap-neg-ults-κ op f pos vs)
+          (Σv κs σ (single-value (chaperone L (inherit-blame κs) f neg pos))))]
+       [(chap-neg-ults-κ L f pos vs)
         (let ([vs* (value->list v)])
           (if (= (length vs)
                  (length vs*))
               (if (andmap chaperone-of? vs* vs)
-                  (app (cons (chap-f-ults-κ op pos) κs) σ f vs*)
-                  (Σ! κs σ (format "chaperone did more than chaperone arguments: ~a ~a" vs vs*)))
-              (Σ! κs σ "negative wrapper must return same number of results")))]                     
-       [(chap-f-ults-κ op pos)
+                  (app (cons (chap-f-ults-κ L pos) κs) σ f vs*)
+                  (Σ! κs σ (λC:blame- L)))
+              (Σ! κs σ (λC:blame- L))))]                     
+       [(chap-f-ults-κ L pos)
         (let ([vs (value->list v)])
           (if (arity-includes? (operator-arity pos)
                                (length vs))
-              (app (cons (chap-pos-ults-κ op vs) κs) σ pos vs)
-              (Σ! κs σ "results wrapper arity incompatible with operator results")))]
-       [(chap-pos-ults-κ op vs)
+              (app (cons (chap-pos-ults-κ L vs) κs) σ pos vs)
+              (Σ! κs σ (λC:blame L))))]
+       [(chap-pos-ults-κ L vs)
         (let ([vs* (value->list v)])
           (if (= (length vs)
                  (length vs*))
               (if (andmap chaperone-of? vs* vs)
                   (Σv κs σ v)
-                  (Σ! κs σ "results wrapper did more than chaperone results"))
-              (Σ! κs σ (format "positive wrapper didn't give number it was given ~a ~a" vs vs*))))]
-       [(handle-κ x ρ e)
+                  (Σ! κs σ (λC:blame+ L)))
+              (Σ! κs σ (λC:blame+ L))))]
+       [(handle-κ ρ e)
         (Σv κs σ v)]
        [(if-κ ρ e0 e1)
         (let ([v (single-value! v)])
@@ -205,21 +165,7 @@
         (let ([v (single-value! v)])
           (if v
               (Σv κs σ (single-value v))
-              (Σe κs σ ρ e)))]
-       [(raise-κ)
-        (match v
-          [(single-value v)
-           (letrec ([loop (match-lambda
-                            [(cons (handle-κ x ρ e) κs)
-                             (let-values ([(σ ρ) (bind σ ρ (list x) #f (list v))])
-                               (Σe κs σ ρ e))]
-                            [(cons κ κs)
-                             (loop κs)]
-                            [(list)
-                             (Σ! κs σ "no handler for error")])])
-             (loop κs))]
-          [(multiple-values vs)
-           (Σ! κs σ "raise must receive one value!")])])]))
+              (Σe κs σ ρ e)))])]))
 
 
 (define (eval e)
@@ -227,8 +173,8 @@
     (match-lambda
       [(Σv (list) σ v)
        (cons σ v)]
-      [(Σ! κs σ msg)
-       (Σ! κs σ msg)]
+      [(Σ! κs σ e)
+       (Σ! κs σ e)]
       [ς
        (inner (step ς))]))
   (inner (Σe empty (hasheqv) (hasheq) e)))

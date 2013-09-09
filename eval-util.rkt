@@ -9,7 +9,10 @@
          (struct-out chaperone)
          (struct-out impersonator)
          (struct-out primitive)
-         (struct-out ERROR)
+         (struct-out λC:error)
+         (struct-out λC:blame)
+         (struct-out λC:blame+)
+         (struct-out λC:blame-)
          chaperone-of?
          bind
          pre-bind
@@ -31,7 +34,11 @@
         i
         (set! i (add1 i))))))
 
-(struct ERROR (state) #:transparent)
+
+(struct λC:error () #:transparent)
+(struct λC:blame (L) #:transparent)
+(struct λC:blame+ λC:blame () #:transparent)
+(struct λC:blame- λC:blame () #:transparent)
 
 (struct closure (xs r ρ e) #:transparent)
 (struct chaperone (L P f neg pos) #:transparent)
@@ -79,7 +86,8 @@
            (primitive-+ f))))
 
 (define (native-apply f vs)
-  (list->value (call-with-values (λ () (apply f vs)) list)))
+  (with-handlers ([exn:fail? (λ (_) (raise (λC:error)))])
+    (list->value (call-with-values (λ () (apply f vs)) list))))
 
 (define (arity-compatible? xs r vs)
   (let ([m (length xs)])
@@ -143,6 +151,7 @@
     [(*) (primitive '* * 2)]
     [(+) (primitive '+ + 2)]
     [(-) (primitive '- - 2)]
+    [(raise) (primitive 'raise (λ () (raise (λC:error))) 0)]
     [(null) (primitive 'null null #f)]
     [(null?) (primitive 'null? null? 1)]
     [(cons) (primitive 'cons cons 2)]

@@ -15,7 +15,6 @@
          (struct-out and-e)
          (struct-out or-e)
          (struct-out handle-e)
-         (struct-out raise-e)
          (struct-out prim-e)
          (struct-out ch-op-e)
          (struct-out im-op-e)
@@ -34,8 +33,7 @@
 (struct if-e exp (e0 e1 e2) #:transparent)
 (struct and-e exp (e0 e1) #:transparent)
 (struct or-e exp (e0 e1) #:transparent)
-(struct handle-e exp (x e0 e1) #:transparent)
-(struct raise-e exp (e) #:transparent)
+(struct handle-e exp (e0 e1) #:transparent)
 (struct prim-e exp (id) #:transparent)
 (struct ch-op-e exp (f neg pos) #:transparent)
 (struct im-op-e exp (f neg pos) #:transparent)
@@ -57,8 +55,6 @@
     [(or-e _ e0 e1)
      (set-union (free-variables e0)
                 (free-variables e1))]
-    [(raise-e _ e)
-     (free-variables e)]
     [(ref-e _ x)
      (seteq x)]
     [(or (int-e _ _)

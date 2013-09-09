@@ -92,12 +92,7 @@
           [(letrec-e L xs r e0 e1)
            (A1 e0 (λ (b0 k0)
                     (A2 e1 (λ (c1 k1)
-                             (k (letrec-e L xs r b0 (k1 c1)) (λ (e0) (k0 e0)))))))]
-          
-          
-          [(raise-e L e0)
-           (A0 'error e0 (λ (a0 k0)
-                           (k (raise-e L a0) k0)))])))
+                             (k (letrec-e L xs r b0 (k1 c1)) (λ (e0) (k0 e0)))))))])))
   
   (A2 e (λ (c0 k0) (k0 c0))))
 

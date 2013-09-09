@@ -79,11 +79,10 @@
                          (inner e0 ρ)
                          (inner e1 ρ)
                          (inner e2 ρ))]
-                  [`(handle ([,(? symbol? x) ,e0]) ,e1)
-                   (handle-e (fresh-label) x (inner e0 (set-add ρ x)) (inner e1 ρ))]
-                  [`(raise ,e)
-                   (raise-e (fresh-label) 
-                            (inner e ρ))]
+                  [`(handle ,e0 ,e1)
+                   (handle-e (fresh-label)
+                             (inner e0 ρ)
+                             (inner e1 ρ))]
                   [`(and ,e0 ,e1)
                    (and-e (fresh-label) 
                           (inner e0 ρ)
@@ -152,7 +151,5 @@
           ,(unparse e1))]
     [(prim-e L id)
      id]
-    [(raise-e L e0)
-     `(raise ,(unparse e0))]
     [(ref-e L x)
      x]))
