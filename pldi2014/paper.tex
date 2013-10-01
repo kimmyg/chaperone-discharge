@@ -45,12 +45,39 @@
 
 \begin{document}
 
+\newcommand{\chapcalc}[0]{\ensuremath{\lambda_{\mathcal{C}}}}
+
 
 \maketitle
 
-%\begin{abstract}
-%This is the text of the abstract.
-%\end{abstract}
+\begin{abstract}
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+This is the text of the abstract.
+\end{abstract}
 
 %\category{CR-number}{subcategory}{third-level}
 
@@ -81,11 +108,12 @@ Higher-order behavioral contracts impose time and space costs on programs.
 
 It takes time to determine compliance of first-order values as the first-order contract can be an arbitrary predicate.
 Additionally, functions may ascribe contracts to their higher-order arguments which themselves do similarly, even recursively.
-Execution of the program proper can be dwarfed by the enforcement of its specification \cite{strickland2012chaperones}.
+Execution time of the program proper can be dwarfed by that of the enforcement of its specification \cite{strickland2012chaperones}.
 %There isn't much a calculus can do to solve the time issue, especially in the face of dependent contracts.
 
-Because contract compliance of higher-order values cannot be determined in general at ascription time, compliance checks must be attached to the value to be performed later.
-These attachments may accumulate, even changing the asymptotic space complexity of the program.
+Because contract compliance of higher-order values cannot be determined in general at ascription time, compliance checks must be attached to values to be performed later.
+These attachments may accumulate, even changing the asymptotic space complexity of the program [cite herman].
+
 This space issue is well-known and a few different approaches have been taken to deal with it:
 Herman's coercion calculus, Wadler and Sieks' threesome calculus, the space-efficient contracts author
 These do well to soundly preserve the asymptotic space complexity of the program and perhaps the time as well.
@@ -102,183 +130,253 @@ Whole-program compilers (cite MLTon) are able to perform thorough inter-procedur
 However, static analysis generally performs best when given access to the entire program.
 We can provide this access if we are willing to analyze Racket bytecode (which, contrary to its name, is a fairly rich language).
 At the bytecode level, programs can be \emph{demodularized} into the conceptual single module which a static analyzer expects.
-Higher-order contracts are manifest in Racket bytecode as function \emph{chaperones} which are themselves a refinement of function \emph{impersonators}.
+Higher-order contracts are manifest in Racket bytecode by \emph{interposition}.
+
+Recent advances in static analysis [cite Earl] % blech
+allow conservative analysis of the stack.
+The motivation for this was to provide an abstract garbage collector a set of live frames, disregarding any stack structure latent in the control flow graph.
+The pushdown characterization immediately admits a finite description of an unbounded stack as a regular expression.
+This description alone is enough to allow us to reason statically about features based on stack inspection, such as security checks [cite] and dynamic binding [cite].
+We will use it to approximate blame on a misbehaving program.
+After considering all possible sources of such blame, a straightforward analysis allows us to alter contract sites, shifting some of the dynamic burden to the static.
 
 % thus, in order to soundly discharge contracts from the original program, we must soundly discharge impersonators and chaperones.
-The implementation of familiar language features is sometimes accomplished through alien constructs.
-Contracts are a common feature of dynamically-typed languages.
-Higher-order contracts \cite{findler2002contracts} increase the domain of contracts to higher-order values.
-Of course, codomain compliance of a higher-order contract cannot be decided at attachment time.
-Instead, contracts are decomposed and positioned to intercept the arguments and results of application--the earliest possible time that contract compliance can be determined.
-This \emph{de facto} wrapping of deferred contract checks imposes space and time overhead.
-Wadler and his cronies and Herman and his cronies \cite{wadler2009well,herman2010space} show how the accumulation of wrappers can grow unbounded and offer various solutions to ameliorate this.
-Determining contract compliance can make up a significant portion of reduction.
+%The implementation of familiar language features is sometimes accomplished through alien constructs.
+% (Because the feature must be situated particularly within the already existing features of the language.)
+%Contracts are a common feature of dynamically-typed languages.
+%Higher-order contracts \cite{findler2002contracts} increase the domain of contracts to higher-order values.
+%Of course, codomain compliance of a higher-order contract cannot be decided at attachment time.
+%Instead, contracts are decomposed and positioned to intercept the arguments and results of application--the earliest possible time that contract compliance can be determined.
+%This \emph{de facto} wrapping of deferred contract checks imposes space and time overhead.
+%Wadler and his cronies and Herman and his cronies \cite{wadler2009well,herman2010space} show how the accumulation of wrappers can grow unbounded and offer various solutions to ameliorate this.
+%Determining contract compliance can make up a significant portion of reduction.
 
-Higher-order contracts \cite{findler2002contracts} are now familiar constructs of languages but their implementation in Racket, which must cope with other language features--perhaps incidentally, is in terms of value wrappers.
- \emph{impersonators} and \emph{chaperones}.
-In Racket, data contracts are implemented at the bytecode level using interposition primitives--that is, values are wrapped and these wrappers intercept arguments and results.
-Because functions are data in a higher-order language, special care has been given to enforcing safe and sound function contracts.
-Of course, codomain contract compliance cannot be decided.
-In consequence, codomain contract checks are deferred until the function actually delivers a value.
+%Higher-order contracts \cite{findler2002contracts} are now familiar constructs of languages but their implementation in Racket, which must cope with other language features--perhaps incidentally, is in terms of value wrappers.
+% \emph{impersonators} and \emph{chaperones}.
+%In Racket, data contracts are implemented at the bytecode level using interposition primitives--that is, values are wrapped and these wrappers intercept arguments and results.
+%Because functions are data in a higher-order language, special care has been given to enforcing safe and sound function contracts.
+%Of course, codomain contract compliance cannot be decided.
+%In consequence, codomain contract checks are deferred until the function actually delivers a value.
 
-Nevertheless, analysis tools have access to more of certain kinds of information after compilation and so have the potential to prove more and different properties about programs.
-Specifically, analysis tools for Racket have access to the whole program after module compilation through a \emph{demodularization} process.
+%Nevertheless, analysis tools have access to more of certain kinds of information after compilation and so have the potential to prove more and different properties about programs.
+%Specifically, analysis tools for Racket have access to the whole program after module compilation through a \emph{demodularization} process.
 
-Racket program lifecycle--the tipping of various types of information
+%Racket program lifecycle--the tipping of various types of information
 
 % a static analysis defines a class of program transformations
 % if the analysis is sound, the transformation is meaning-preserving
 % are these two preceding statements true?
 
-This goal can be sought at each of the various stages of the Racket program lifecycle.
-Initially, programs are organized into modules, and dynamic behavior can be gleaned from contract declarations at module boundaries.\cite{tobin2012higher}
-Each module is compiled in isolation to bytecode; the bytecode compiler performs optimizations which rely on at most basic flow analysis are performed (constant-folding, 
-``The bytecode compiler applies all standard optimizations, such as constant propagation, constant folding, inlining, and dead-code elimination.''
-The journey to this stage discards high-level information and doesn't acquire much new information, so analysis here is probably fruitless.
-Racket programs are organized into modules which consist of a sequence of import declarations, export declarations, definitions, and expressions.
-When a module A is required in the program, the module is \emph{visited} which consists evaluating definition bodies and expressions to initialize exported variables.
-Because Racket has rich facilities for syntactic extension, execution of code must be carefully controlled, especially since modules can be compiled separately.
-(cite You Want It When)
-Racket modules are compiled to bytecode. This
+%This goal can be sought at each of the various stages of the Racket program lifecycle.
+%Initially, programs are organized into modules, and dynamic behavior can be gleaned from contract declarations at module boundaries.\cite{tobin2012higher}
+%Each module is compiled in isolation to bytecode; the bytecode compiler performs optimizations which rely on at most basic flow analysis are performed (constant-folding, 
+%``The bytecode compiler applies all standard optimizations, such as constant propagation, constant folding, inlining, and dead-code elimination.''
+%The journey to this stage discards high-level information and doesn't acquire much new information, so analysis here is probably fruitless.
+%Racket programs are organized into modules which consist of a sequence of import declarations, export declarations, definitions, and expressions.
+%When a module A is required in the program, the module is \emph{visited} which consists evaluating definition bodies and expressions to initialize exported variables.
+%Because Racket has rich facilities for syntactic extension, execution of code must be carefully controlled, especially since modules can be compiled separately.
+%(cite You Want It When)
+%Racket modules are compiled to bytecode. This
 
-implementation of contracts within racket using interposition
+%implementation of contracts within racket using interposition
 
-talk about blame and the method Racket uses to assign blame--the compilation process, etc.
+%talk about blame and the method Racket uses to assign blame--the compilation process, etc.
 
-We discuss impersonators and chaperones in more depth in Section 2. We introduce the syntax and semantics of chapcalc, a core calculus with facilities for impersonating and chaperoning closures, in Section 3. We present two theorems which establish the conditions for the sound promotion or discharge of a selected chaperone creation site in Section 4. We present a static analysis which can judge when these conditions hold in Section 5. We present performance benchmarks of programs subject to this static analysis in Section 6. We discuss how this work fits with higher-order contracts and contract discharge in Section 7. We discuss limitations and future directions for this work in Section 8.
+We discuss interposition in more depth in Section 2.
+We introduce the syntax and semantics of \chapcalc, a core calculus with facilities for impersonating and chaperoning closures, in Section 3.
+We present two theorems which establish the conditions for the sound promotion or discharge of a selected chaperone creation site in Section 4.
+We present a static analysis which can judge when these conditions hold in Section 5.
+We present performance benchmarks of programs subject to this static analysis in Section 6.
+We discuss how this work fits with higher-order contracts and contract discharge in Section 7.
+We conclude by discussing the limitations and future directions of this work in Section 8.
+
 
 impersonators and chaperones
 
-\subsection{Impersonators and Chaperones}
-
-The implementation of higher-order contracts in Racket is accomplished via procedure \emph{impersonators} and \emph{chaperones}.
-
-Procedure impersonators intercept application arguments and results and forward them to the procedure or context, respectively, although they may modify or replace them before doing so.
-Additionally, they may exhibit side effects.
-
-Function chaperones refine impersonators in that they are restricted in the modification they can apply to intercepted values.
-Procedure chaperones must return their arguments or chaperones of their arguments.
-
-Impersonators and chaperones thus constitute an interposed wrapper between values and their contexts, and so we refer to them as \emph{interposition}.
-
-Interposition is accomplished via two primitives, \emph{impersonators} and \emph{chaperones}.
-
-Impersonators intercept arguments and results and can modify them arbitrarily before delivering them to their original destination.
-Because such an ability amounts to mutation, impersonators are restricted to values where mutation can be observed, including functions.
-
-Chaperones refine impersonators in that their interposition is restricted to installing chaperones on arguments and performing side effects--in particular, raising exceptions to signal contract violations and assign blame.
-
-Higher-order contract checking can introduce enormous overhead to program execution--in real-world programs, as high as 75\% \emph{?}--but we expect that many of the contracts will never be violated.
-The static detection and discharge of these contracts would therefore increase program performance significantly without compromising safety.
-
-chaperone calculus, including the specific semantics of impersonators and chaperones
-
-the motivation to soundly discharge or promote a chaperone
-
-the conditions for a discharge to be sound
-
-a fixed-point type of algorithm to determine which can be erased
-erase the ones at the "bottom"
-run the analysis again
-keep going until there are none at the bottom
-must handle recursive sites, if that's possible
-we don't have to run the analysis again, just analyze the results
-
-the result of the analysis is a program transformation on labelled sites
-
-\section{Chaperone Calculus}
-
-We consider a small language with facilities for impersonating and chaperoning procedures, chapcalc.
-We inherit the constraints of impersonators and chaperones from Racket.
-To accommodate these constraints, chapcalc \scheme{let}- and \scheme{letrec}-binding forms have the same structure as \scheme{λ}-binding forms.
-For example,
-\begin{schemedisplay}
-(let ([(a) (f x)])
-  ...)
-\end{schemedisplay}
-binds the single result of \scheme{(f x)} to \scheme{a}, and \scheme{raise}s if \scheme{(f x)} does not result in exactly one value (just as an application \scheme{raise}s if its arity is incompatible the number of arguments supplied).
-In contrast,
-\begin{schemedisplay}
-(let ([a (f x)])
-  ...)
-\end{schemedisplay}
-binds a list of any number of results of \scheme{(f x)} to \scheme{a}.
-Finally,
-\begin{schemedisplay}
-(let ([(a . b) (f x)])
-  ...)
-\end{schemedisplay}
-binds the first result of \scheme{(f x)} to \scheme{a} and a list of all remaining results to \scheme{b}.
-
-This is the grammar for chapcalc0.
-\begin{figure*}
-\input{calc0}
-\end{figure*}
-
-programs either evaluate to a value, evaluate to an error, or diverge.
-our theorem only deals with chaperones which don't affect whether the program evaluates to a value?
-a program could diverge on chaperone creation (evaluating the guards) or chaperone application (applying the guards).
-this is undecidable in general.
-it is possible to remove a chaperone and have some programs that errored out evaluate to a value (because the guards may artificially restrict the domain or codomain of the function).
-it is possible to remove a chaperone and have some programs that errored out diverge (because the error came before divergence).
-if a program evaluates to a value then no chaperone errored out and no chaperone diverged.
-we also are only changing chaperones that don't error in any circumstances.
-therefore, if a program evaluates to a value with a given input before erasure or promotion, it will evaluate to that value after erasure or promotion.
-if a program evaluates to an error with a given input, it will evaluate to an error after, since we will not erase or promote a chaperone that /could/ throw an error, for a sound analysis.
-however, programs that would have diverged otherwise may evaluate to a value or an error.
-
-$\longrightarrow$
-
-Figure whatever defines the grammar for chapcalc0 expressions. Expressions \scheme{e} have the following forms
-Procedure applications of the form \scheme{(e e ...)} apply a procedure to a static sequence of arguments.
-The \scheme{app-values} form applies a procedure to a list of values as if the constitent values were supplied statically.
-The \scheme{values} forms returns any number of values as results. 
-
-The \scheme{or} form is strict in its first expression position.
-The \scheme{and} form is strict in its first expression position.
-
-To make the handling of wrapper procedures easier, call and return sites are symmetric in chapcalc. The binding specification of a $\lambda$ form (statically) designates a finite number of arguments to bind individually and an optional \emph{rest} parameter which binds any remaining arguments, as can that of a \scheme{let} or \scheme{letrec} form. If the binding specification of a form does not have a \scheme{rest} parameter, its arity is the number of arguments it binds--a natural number.
-
-When speaking about operators, we will refer to its arguments arity, which is the set of acceptable numbers of arguments, and its results arity, which is the set of possible numbers of results.
-
-Figure whatever2 defines the evaluation contexts for chapcalc0 expressions.
-Evaluation contexts are either a hole which is the destination for the evaluation of the current redex...
-
-Figure whatever3 defines the reduction rules for chapcalc0.
-Rule blank applies when the redex is an application form and the operator is a closure.
-The result is blank.
-Rule blank applies when the redex is an application form and the operator is a primitive.
-The result is blank or an error.
-Rule blank applies when the redex is an application form and the operator is a chaperone.
-If the arguments arity of the negative guard does not include the number of arguments given, an error is raised.
-The context is extended with a frame annotated with the value and ``negative'' and the arguments given.
-When the results return, etc.
-
-Decomposition of a term into context and redex is unique and the rule conditions are disjoint, so these rules define a function on terms.
-
-Let $\longrightarrow\longrightarrow$ be the reflexive, transitive closure of this relation.
-This defines an evaluation function.
-Programs in chapcalc0 can result in a value, an error, or divergence.
-\begin{definition}[Soundness]
-If a program $p$ with input $x$ evaluates to a value $v$, then $T[p]$ with input $x$ evaluates to $v$.
-If a program $p$ with input $x$ results in an error, then $T[p]$ with input $x$ results in an error.
-\end{definition}
-
-While blame is an apt description of the judgment we are making, our notion of blame is not the same as [Findler and Wadler].
-The category of behaviors for which we must account include whether errors arise as a result of chaperone creation or chaperone application.
-In each case, we are concerned with the creation site of the chaperone application.
-If an error arises as a result
-
-While there is only one mechanism to provoke errors, the erroneous result of the program resides in one of four classes depending on the state of execution at the time of provocation.
-(Bad format below.)
+The \scheme{chaperone-procedure} procedure takes a procedure \scheme{p} to be chaperoned as its first argument and a procedure \scheme{w} to wrap \scheme{p} as its second argument.
+The argument and result arities of \scheme{p} and \scheme{w} must be compatible.
+This means that the argument arity of \scheme{w} must be the same as
+%\footnote{Racket procedures can include both mandatory and optional keyword arguments. When considering these, it is necessary only that the set of mandatory keyword arguments of \scheme{p} include those of \scheme{w} and the set of all keyword arguments of \scheme{p} be included in.}
+The result of a \scheme{chaperone-procedure} call is a procedure which, upon invocation, will deliver the arguments to \scheme{w}.
 \begin{enumerate}
-\item If evaluation of a \scheme{chaperone-operator} application is occurring, the error is transformed to a blame assignment of that site.
-\item If evaluation of the negative guard of a chaperone is occurring, the error becomes \scheme{(blame -L)}.
-\item If evaluation of the positive guard of a chaperone is occurring, the error becomes ...
-\item none means none
-\item if the negative guard does more than chaperone arguments, blame should be assigned to the guard in some sense, indicating that not only can the guard not be discharged, but the chaperone site also cannot be demoted to an impersonator. (remember the types of errors we need to track!)
+\item The $n$ arguments are delivered to \scheme{w}.
+\item If \scheme{w} returns $n$ results, the results are 
 \end{enumerate}
-An error is transformed according to the innermost part of the context which meets the criteria.
+
+
+\section{Interposition}
+
+Behavioral contracts in Racket are manifest at run time by \emph{impersonators} and \emph{chaperones}.
+
+An impersonator wraps a value and intercepts operations on them, potentially redirecting them.
+In the case of procedures--first-class values in Racket--impersonators intercept arguments and can alter or replace them before passing them to the procedure they wrap.
+As they pass these arguments, they have the opportunity to register for interest in intercepting the results of the application by including an extra argument: a callback procedure which will be applied to the results of the inner procedure.
+
+In many ways, impersonators are unconstrained in their behavior: they can perform side-effects, even aborting the pending application; they can alter arguments arbitrarily before passing them along, a capability tantamount to mutation.
+However, with respect to procedures, their behavior must meet a minimum standard of predictability: wrapper procedures must return the same number of values as given (except for the optional extra argument mentioned earlier); the arity of a wrapper procedure must include the arity of the procedure to be wrapped, a condition enforced at impersonator installation time.
+
+Chaperones refine impersonators by trading behavioral freedom for reasonability.
+Well-behaved procedure chaperones cannot alter intercepted arguments arbitrarily; they must return them as given or possibly with chaperones installed on them.
+Chaperones share the ability of impersonators to perform side-effects.
+In particular, they retain the ability to raise exceptions, the mechanism by which contract violations are signalled.
+
+Chaperones are intended to be treated like the original value.
+% box?, procedure?, etc. will respond the same way
+% they evaluate equal? to the values they wrap, but not eq?
+Procedure chaperones are considered to have the same arity of the procedures they wrap.
+The \scheme{chaperone?} predicate is designated as the single way to detect chaperones at runtime, though its use is discouraged.
+
+%the bytecode level in terms of interposition installation.
+%Higher-order and mutable values are wrapped with \emph{impersonators} which redirect operations on the value and mediate breaches of expectations between the value and its context.
+%Impersonators can redirect behavior arbitrarily, which may violate some expectations or invariants the user would like to establish, so contracts are expressed in terms of a restricted form of impersonators, \emph{chaperones}.
+%Chaperones are limited to chaperoning values that pass through their membrane and performing side effects (particularly the announcement of a contract violation in the form of an exception).
+
+%Run-time interposition effects a run-time cost: impersonators have to be well-behaved in certain ways the limitations of chaperones must by enforced dynamically.
+
+%Soundly discharging a contract, then, amounts to preventing the installment of the chaperone in the first place.
+%If that is not possible, 
+
+%Behavioral contracts on higher-order and mutable objects must be checked on every operation to which the contract pertains--an up-front check is not enough.
+%Racket uses run-time interposition to implement value contracts in terms of two proxy primitives: \emph{impersonators} and \emph{chaperones}.
+
+%An impersonator wraps a value and redirects operations on it.
+
+%Impersonators wrap values and redirect operations in which they interpose.
+
+%The implementation of value contracts in Racket is accomplished via \emph{impersonators} and \emph{chaperones}.
+%Impersonators and chaperones wrap values and intercept 
+
+%The implementation of higher-order contracts in Racket is accomplished via procedure \emph{impersonators} and \emph{chaperones}.
+
+%Procedure impersonators intercept application arguments and results and forward them to the procedure or context, respectively, although they may modify or replace them before doing so.
+%Additionally, they may exhibit side effects.
+
+%Function chaperones refine impersonators in that they are restricted in the modification they can apply to intercepted values.
+%Procedure chaperones must return their arguments or chaperones of their arguments.
+
+%Impersonators and chaperones thus constitute an interposed wrapper between values and their contexts, and so we refer to them as \emph{interposition}.
+
+%Interposition is accomplished via two primitives, \emph{impersonators} and \emph{chaperones}.
+
+%Impersonators intercept arguments and results and can modify them arbitrarily before delivering them to their original destination.
+%Because such an ability amounts to mutation, impersonators are restricted to values where mutation can be observed, including functions.
+
+%Chaperones refine impersonators in that their interposition is restricted to installing chaperones on arguments and performing side effects--in particular, raising exceptions to signal contract violations and assign blame.
+
+%Higher-order contract checking can introduce enormous overhead to program execution--in real-world programs, as high as 75\% \emph{?}--but we expect that many of the contracts will never be violated.
+%The static detection and discharge of these contracts would therefore increase program performance significantly without compromising safety.
+
+%chaperone calculus, including the specific semantics of impersonators and chaperones
+
+%the motivation to soundly discharge or promote a chaperone
+
+%the conditions for a discharge to be sound
+
+%a fixed-point type of algorithm to determine which can be erased
+%erase the ones at the "bottom"
+%run the analysis again
+%keep going until there are none at the bottom
+%must handle recursive sites, if that's possible
+%we don't have to run the analysis again, just analyze the results
+
+%the result of the analysis is a program transformation on labelled sites
+
+%\section{Chaperone Calculus}
+
+% Racket is big and we don't/can't analyze all of it, nor do we want to report on it, so we deal with a small calculus.
+% Part of the purpose is to limit the language; part is to limit the exposition.
+% We will clear what is safe and easy to add.
+
+%We consider a small language with facilities for impersonating and chaperoning procedures, \chapcalc.
+
+%We inherit the constraints of impersonators and chaperones from Racket.
+%To accommodate these constraints, \chapcalc \scheme{let}- and \scheme{letrec}-binding forms have the same structure as \scheme{λ}-binding forms.
+%For example,
+%\begin{schemedisplay}
+%(let ([(a) (f x)])
+%  ...)
+%\end{schemedisplay}
+%binds the single result of \scheme{(f x)} to \scheme{a}, and \scheme{raise}s if \scheme{(f x)} does not result in exactly one value (just as an application \scheme{raise}s if its arity is incompatible the number of arguments supplied).
+%In contrast,
+%\begin{schemedisplay}
+%(let ([a (f x)])
+%  ...)
+%\end{schemedisplay}
+%binds a list of any number of results of \scheme{(f x)} to \scheme{a}.
+%Finally,
+%\begin{schemedisplay}
+%(let ([(a . b) (f x)])
+%  ...)
+%\end{schemedisplay}
+%binds the first result of \scheme{(f x)} to \scheme{a} and a list of all remaining %results to \scheme{b}.
+
+%This is the grammar for \chapcalc 0.
+%\begin{figure*}
+%\input{calc0}
+%\end{figure*}
+
+%programs either evaluate to a value, evaluate to an error, or diverge.
+%our theorem only deals with chaperones which don't affect whether the program evaluates to a value?
+%a program could diverge on chaperone creation (evaluating the guards) or chaperone application (applying the guards).
+%this is undecidable in general.
+%it is possible to remove a chaperone and have some programs that errored out evaluate to a value (because the guards may artificially restrict the domain or codomain of the function).
+%it is possible to remove a chaperone and have some programs that errored out diverge (because the error came before divergence).
+%if a program evaluates to a value then no chaperone errored out and no chaperone diverged.
+%we also are only changing chaperones that don't error in any circumstances.
+%therefore, if a program evaluates to a value with a given input before erasure or promotion, it will evaluate to that value after erasure or promotion.
+%if a program evaluates to an error with a given input, it will evaluate to an error after, since we will not erase or promote a chaperone that /could/ throw an error, for a sound analysis.
+%however, programs that would have diverged otherwise may evaluate to a value or an error.
+
+%Figure whatever defines the grammar for \chapcalc 0 expressions. Expressions \scheme{e} have the following forms
+%Procedure applications of the form \scheme{(e e ...)} apply a procedure to a static sequence of arguments.
+%The \scheme{app-values} form applies a procedure to a list of values as if the constitent values were supplied statically.
+%The \scheme{values} forms returns any number of values as results. 
+
+%The \scheme{or} form is strict in its first expression position.
+%The \scheme{and} form is strict in its first expression position.
+
+%To make the handling of wrapper procedures easier, call and return sites are symmetric in \chapcalc. The binding specification of a $\lambda$ form (statically) designates a finite number of arguments to bind individually and an optional \emph{rest} parameter which binds any remaining arguments, as can that of a \scheme{let} or \scheme{letrec} form. If the binding specification of a form does not have a \scheme{rest} parameter, its arity is the number of arguments it binds--a natural number.
+
+%When speaking about operators, we will refer to its arguments arity, which is the set of acceptable numbers of arguments, and its results arity, which is the set of possible numbers of results.
+
+%Figure whatever2 defines the evaluation contexts for \chapcalc 0 expressions.
+%Evaluation contexts are either a hole which is the destination for the evaluation of the current redex...
+
+%Figure whatever3 defines the reduction rules for \chapcalc 0.
+%Rule blank applies when the redex is an application form and the operator is a closure.
+%The result is blank.
+%Rule blank applies when the redex is an application form and the operator is a primitive.
+%The result is blank or an error.
+%Rule blank applies when the redex is an application form and the operator is a chaperone.
+%If the arguments arity of the negative guard does not include the number of arguments given, an error is raised.
+%The context is extended with a frame annotated with the value and ``negative'' and the arguments given.
+%When the results return, etc.
+
+%Decomposition of a term into context and redex is unique and the rule conditions are disjoint, so these rules define a function on terms.
+
+%Let $\longrightarrow\longrightarrow$ be the reflexive, transitive closure of this relation.
+%This defines an evaluation function.
+%Programs in \chapcalc 0 can result in a value, an error, or divergence.
+%\begin{definition}[Soundness]
+%If a program $p$ with input $x$ evaluates to a value $v$, then $T[p]$ with input $x$ evaluates to $v$.
+%If a program $p$ with input $x$ results in an error, then $T[p]$ with input $x$ results in an error.
+%\end{definition}
+
+%While blame is an apt description of the judgment we are making, our notion of blame is not the same as [Findler and Wadler].
+%The category of behaviors for which we must account include whether errors arise as a result of chaperone creation or chaperone application.
+%In each case, we are concerned with the creation site of the chaperone application.
+%If an error arises as a result
+
+%While there is only one mechanism to provoke errors, the erroneous result of the program resides in one of four classes depending on the state of execution at the time of provocation.
+%(Bad format below.)
+%\begin{enumerate}
+%\item If evaluation of a \scheme{chaperone-operator} application is occurring, the error is transformed to a blame assignment of that site.
+%\item If evaluation of the negative guard of a chaperone is occurring, the error becomes \scheme{(blame -L)}.
+%\item If evaluation of the positive guard of a chaperone is occurring, the error becomes ...
+%\item none means none
+%\item if the negative guard does more than chaperone arguments, blame should be assigned to the guard in some sense, indicating that not only can the guard not be discharged, but the chaperone site also cannot be demoted to an impersonator. (remember the types of errors we need to track!)
+%\end{enumerate}
+%An error is transformed according to the innermost part of the context which meets the criteria.
 
 % make a redex model of the language
 % generate random program
@@ -290,114 +388,114 @@ An error is transformed according to the innermost part of the context which mee
 % transform according to analysis
 % ensure that the result is the same for a set of random inputs
 
-Our transformation preserves valid evaluation and preserves erroneous evaluation.
-We do not (and cannot) say anything about divergent evaluation.
-$T[p]$ may converge on some input $x$ where $p$ diverged.
+%Our transformation preserves valid evaluation and preserves erroneous evaluation.
+%We do not (and cannot) say anything about divergent evaluation.
+%$T[p]$ may converge on some input $x$ where $p$ diverged.
 
-By this definition, the identity transformation is sound. We will take the position that if the creation or application of a chaperone value \emph{may} result in an error, we will not discharge it. Only when our conservative analysis indicates that an error cannot be raised will we discharge it.
+%By this definition, the identity transformation is sound. We will take the position that if the creation or application of a chaperone value \emph{may} result in an error, we will not discharge it. Only when our conservative analysis indicates that an error cannot be raised will we discharge it.
 
-As an error is raised, it starts to unwind the stack. If a negative frame is encountered, blame is allocated to over p (negative p). Similarly for a positive frame. If neither type of frame is encountered, the result is simply \scheme{error}.
+%As an error is raised, it starts to unwind the stack. If a negative frame is encountered, blame is allocated to over p (negative p). Similarly for a positive frame. If neither type of frame is encountered, the result is simply \scheme{error}.
 
-The \scheme{chaperone-operator} operator takes as arguments: an operator \scheme{f} to be chaperoned, an operator \scheme{neg-wrap} which must have the same argument arities as \scheme{f} and produce as many results as arguments given, and an operator \scheme{pos-wrap} which must have the same result arities as \scheme{f} and accept as many arguments as results produced.
+%The \scheme{chaperone-operator} operator takes as arguments: an operator \scheme{f} to be chaperoned, an operator \scheme{neg-wrap} which must have the same argument arities as \scheme{f} and produce as many results as arguments given, and an operator \scheme{pos-wrap} which must have the same result arities as \scheme{f} and accept as many arguments as results produced.
 
-For each wrapper, then, there are two properties which must be enforced.
-Of these four properties, only one--that \scheme{neg-wrap} has the same argument arity as \scheme{f}--can be enforced at chaperone creation (and Racket takes this approach). For simplicity and understandability, we will initially defer enforcement of each of these properties until chaperone invocation.
+%For each wrapper, then, there are two properties which must be enforced.
+%Of these four properties, only one--that \scheme{neg-wrap} has the same argument arity as \scheme{f}--can be enforced at chaperone creation (and Racket takes this approach). For simplicity and understandability, we will initially defer enforcement of each of these properties until chaperone invocation.
 
-Definition: call an impersonator value \emph{well-behaved} with respect to a program if it never \scheme{raise}s as a result of an arity mismatch and its wrappers preserve arities.
+%Definition: call an impersonator value \emph{well-behaved} with respect to a program if it never \scheme{raise}s as a result of an arity mismatch and its wrappers preserve arities.
 
-[m] -> neg-wrap -> [m] -> f -> [n] -> pos-wrap -> [n]
+%[m] -> neg-wrap -> [m] -> f -> [n] -> pos-wrap -> [n]
 
-talk about the run-time cost of chaperones and the optimizations we would like to perform:
+%talk about the run-time cost of chaperones and the optimizations we would like to perform:
 
-STILL NEED CHAPERONE VALUES TO TRACK THEIR CREATING CHAPERONE (OR AT LEAST ITS LABEL).
+%STILL NEED CHAPERONE VALUES TO TRACK THEIR CREATING CHAPERONE (OR AT LEAST ITS LABEL).
 
 
-Guards can fail by raising an error. (This error is translated into a blame error by the context?)
-Guards can also fail by changing their arguments more than chaperoning.
+%Guards can fail by raising an error. (This error is translated into a blame error by the context?)
+%Guards can also fail by changing their arguments more than chaperoning.
 
-A guard that never raises an error and does not chaperone any of its arguments is ``OK''.
-A chaperone with an ``OK'' negative guard and an ``OK'' positive guard is ``OK''.
-A guard that never raises an error and only creates ``OK'' chaperones is ``OK''.
-An ``OK'' guard can be replaced with \scheme{values}.
-A chaperone creation site that never raises and with only ``OK'' guards is ``OK''.
-An ``OK'' chaperone creation site can be replaced with its first argument.
+%A guard that never raises an error and does not chaperone any of its arguments is ``OK''.
+%A chaperone with an ``OK'' negative guard and an ``OK'' positive guard is ``OK''.
+%A guard that never raises an error and only creates ``OK'' chaperones is ``OK''.
+%An ``OK'' guard can be replaced with \scheme{values}.
+%A chaperone creation site that never raises and with only ``OK'' guards is ``OK''.
+%An ``OK'' chaperone creation site can be replaced with its first argument.
 
-If a program $p$ with input $x$ evaluates to a value $v$, then program $p$ with an ``OK'' chaperone creation site replaced with its first argument evaluates to $v$.
+%If a program $p$ with input $x$ evaluates to a value $v$, then program $p$ with an ``OK'' chaperone creation site replaced with its first argument evaluates to $v$.
 
-Definition: call a chaperone value well-behaved with respect to a program if it is a well-behaved impersonator and every result of its wrappers is \scheme{chaperone-of?} the corresponding argument.
+%Definition: call a chaperone value well-behaved with respect to a program if it is a well-behaved impersonator and every result of its wrappers is \scheme{chaperone-of?} the corresponding argument.
 
-\subsection{Handling \emph{handle}}
+%\subsection{Handling \emph{handle}}
 
-Exception handlers prevent certain errors from escaping a particular dynamic extent.
-Consider the program
-\begin{schemedisplay}
-(handle
-  (chaperone-operator + (raise) (raise))
-  -)
-\end{schemedisplay}
-wherein an error is always raised and the handler always triggered.
-Even though an exception never escapes the dynamic extent of the \scheme{handle} expression, replacing the \scheme{chaperone-operator} application with its first argument results in a different program. 
-This means that we must consider whether a \scheme{chaperone-operator} application ever raises an error, and not simply if that error escapes a delimited extent.
+%Exception handlers prevent certain errors from escaping a particular dynamic extent.
+%Consider the program
+%\begin{schemedisplay}
+%(handle
+%  (chaperone-operator + (raise) (raise))
+%  -)
+%\end{schemedisplay}
+%wherein an error is always raised and the handler always triggered.
+%Even though an exception never escapes the dynamic extent of the \scheme{handle} expression, replacing the \scheme{chaperone-operator} application with its first argument results in a different program. 
+%This means that we must consider whether a \scheme{chaperone-operator} application ever raises an error, and not simply if that error escapes a delimited extent.
 % being able to catch errors means that errors can change the meaning of a program arbitrarily--even if it results in a value.
 % this means that we need to preserve errors
 % chaperone-of? within the language can change the behavior, right? if it was a chaperone before, removing the chaperone makes it still chaperone-of? it's chaperone? that makes it possible to detect changes, but that is discouraged, and we will leave it out of our language.
 
-[m] -> neg-wrap -> C[m] -> f -> [n] -> pos-wrap -> C[n]
+%[m] -> neg-wrap -> C[m] -> f -> [n] -> pos-wrap -> C[n]
 
-Chaperone values are branded with the label of their creation site. In any given program, there are a finite number of these creation sites and labels. In fact, it is these creation sites that we are concerned with. The output of an analysis is a map from labels to transformations (no-op, promotion, discharge). Once we apply these transformations, we recover optimization opportunities as data dependency decreases.
+%Chaperone values are branded with the label of their creation site. In any given program, there are a finite number of these creation sites and labels. In fact, it is these creation sites that we are concerned with. The output of an analysis is a map from labels to transformations (no-op, promotion, discharge). Once we apply these transformations, we recover optimization opportunities as data dependency decreases.
 
-We call a wrapper function $g$ an \emph{originator} of a chaperone $c_0$ if $c_0$ is created in within the extent of $g$. Chaperone values are also branded with their parent chaperon
+%We call a wrapper function $g$ an \emph{originator} of a chaperone $c_0$ if $c_0$ is created in within the extent of $g$. Chaperone values are also branded with their parent chaperon
 
-Definition: call a creation site good0 if all of the chaperone values which flow from it are well-behaved.
+%Definition: call a creation site good0 if all of the chaperone values which flow from it are well-behaved.
 
-If the wrapper returns an additional result, its first result is a function (that may depend on input) that has argument and result arities of the result arities of the wrapped function.
+%If the wrapper returns an additional result, its first result is a function (that may depend on input) that has argument and result arities of the result arities of the wrapped function.
 
-\begin{theorem}[Selective Chaperone Discharge Theorem]
-A good and nice chaperone installment site can soundly be replaced by its first argument (where ``soundly'' means ``with no change to the meaning of the program'').
-\end{theorem}
+%\begin{theorem}[Selective Chaperone Discharge Theorem]
+%A good and nice chaperone installment site can soundly be replaced by its first argument %(where ``soundly'' means ``with no change to the meaning of the program'').
+%\end{theorem}
 
-\begin{proof}
-The only way that a chaperone can change the meaning of a program is by causing an error, raising an error, or causing the creation of a chaperone with the same property.
+%\begin{proof}
+%The only way that a chaperone can change the meaning of a program is by causing an error, raising an error, or causing the creation of a chaperone with the same property.
 
-By definition, all chaperones which flow from a good and nice chaperone installment site are good and nice meaning that they do not cause an error, raise an error, or cause the creation of a chaperone with the same property.
-\end{proof}
+%By definition, all chaperones which flow from a good and nice chaperone installment site are good and nice meaning that they do not cause an error, raise an error, or cause the creation of a chaperone with the same property.
+%\end{proof}
 
 % do (chaperone f negative positive) first
 % and then deal with (chaperone f w)
 
-Because the result wrapper is produced at each invocation, it may depend on 
+%Because the result wrapper is produced at each invocation, it may depend on 
 
-Strickland presents a chaperone erasure theorem which states that if a program with chaperones evaluates to a value, the same program with chaperones erased--that is, with all chaperone installment sites replaced with the first argument--will evaluate to the same value. The purpose of this theorem seems to be to make a statement about the nature of chaperones--that, in a well-behaved program, they do not change meaning. Our theorems give the conditions of when a given chaperone installment site does not change the meaning of the program.
+%Strickland presents a chaperone erasure theorem which states that if a program with chaperones evaluates to a value, the same program with chaperones erased--that is, with all chaperone installment sites replaced with the first argument--will evaluate to the same value. The purpose of this theorem seems to be to make a statement about the nature of chaperones--that, in a well-behaved program, they do not change meaning. Our theorems give the conditions of when a given chaperone installment site does not change the meaning of the program.
 
-This language is sufficient to express two theorems.
+%This language is sufficient to express two theorems.
 
-Definition: Call an impersonator \emph{well-behaved} with respect to a program if its application never \scheme{raise}s.
-(only talking about arity and special runtime stuff here)
+%Definition: Call an impersonator \emph{well-behaved} with respect to a program if its application never \scheme{raise}s.
+%(only talking about arity and special runtime stuff here)
 
-Well-behavedness is defined with respect to a program--as opposed to assigning the property in isolation--because an impersonator may misbehave in situations never encountered within a particular program.
+%Well-behavedness is defined with respect to a program--as opposed to assigning the property in isolation--because an impersonator may misbehave in situations never encountered within a particular program.
 
-In general, we cannot decide whether a particular impersonator--in context or isolation--has this property.
+%In general, we cannot decide whether a particular impersonator--in context or isolation--has this property.
 
-Definition: Call a chaperone wrapping function \emph{well-behaved} with respect to a program if it only possibly installs chaperones on its arguments.
+%Definition: Call a chaperone wrapping function \emph{well-behaved} with respect to a program if it only possibly installs chaperones on its arguments.
 
-Definition: Call a chaperone \emph{well-behaved} with respect to a program if its application never \scheme{raise}s.
+%Definition: Call a chaperone \emph{well-behaved} with respect to a program if its application never \scheme{raise}s.
 
-Definition: Call a chaperone \emph{satisfied} with respect to a program if it never \emph{raise}s and 
+%Definition: Call a chaperone \emph{satisfied} with respect to a program if it never \emph{raise}s and 
 
-Def: call a chaperone good0 wrt a program if it at most chaperones its arguments.
-Def: call a chaperone-installment site good0 wrt a program if all chaperones which flow from it are good0.
-Def: call a chaperone good1 wrt a program if it is good0 and its installing chaperone, if any, is good1.
-Def: call a chaperone-installment site good1 wrt a program if it is good0 and the chaperone-installment sites of its installing chaperones, if any, are good1.
-Thm: a good1 chaperone-installment site can be promoted to an impersonator-installment site if its installing chaperone site, if any, is promoted.
+%Def: call a chaperone good0 wrt a program if it at most chaperones its arguments.
+%Def: call a chaperone-installment site good0 wrt a program if all chaperones which flow from it are good0.
+%Def: call a chaperone good1 wrt a program if it is good0 and its installing chaperone, if any, is good1.
+%Def: call a chaperone-installment site good1 wrt a program if it is good0 and the chaperone-installment sites of its installing chaperones, if any, are good1.
+%Thm: a good1 chaperone-installment site can be promoted to an impersonator-installment site if its installing chaperone site, if any, is promoted.
 
 
 %if all chaperones which flow from a chaperone-installment site are good1, the installer can be promoted to an impersonator installer--all the chaperones which flow from it can be promoted to impersonators.
 
 % I think the conditions above and below are (as written and in actuality) disjoint
 
-Def: call a chaperone good2 wrt a program if its application never raises a runtime (arity) error, its wrapper never raises.
-Def: call a chaperone good3 wrt a program if it is good2 and the chaperones it installed, if any, are good3.
-Thm: if all chaperones which flow from a chaperone-installment site are good3, that site can be replaced with its first argument (the until-now-wrapped value).
+%Def: call a chaperone good2 wrt a program if its application never raises a runtime (arity) error, its wrapper never raises.
+%Def: call a chaperone good3 wrt a program if it is good2 and the chaperones it installed, if any, are good3.
+%Thm: if all chaperones which flow from a chaperone-installment site are good3, that site can be replaced with its first argument (the until-now-wrapped value).
 
 %This amounts to the possible arisal of two different types of errors: the first type is the violation of a contract assertion--in this case, blame is determined to fall on either the caller or the callee (the wrapped function itself); the second type is a misbehaving chaperone: it does not return the correct number of values or it does not only chaperone the arguments.
 
@@ -411,11 +509,583 @@ Thm: if all chaperones which flow from a chaperone-installment site are good3, t
 % if the chaperone-operator is wrapped in a function, then it can only be changed if /all/ the uses of that function meet the requirements. it doesn't matter if the store is going to be garbage-collected--all the values are branded with its syntactic label.
 % one thing we could do is attempt to distinguish calls into classes and divert all calls of a certain class to a different function. for instance, if a chaperone value as it goes around the program is well-behaved, can we look where it is created and change it in isolation somehow?
 
-In the Racket implementation, the \scheme{chaperone-procedure} primitive is access most often through a wrapper function that handles keyword procedures.
-Our static analysis determines the transformation of a \scheme{chaperone-procedure} application site to be sound only if no contract installed there will ever be blamed.
-This means that the violation of a single contract installed there prevents the promotion or discharge of \emph{any} of the other contracts installed there.
-In order for the analysis to be effective, we need more granularity.
-We preprocess programs to inline certain definitions according to human judgement.
+%In the Racket implementation, the \scheme{chaperone-procedure} primitive is access most often through a wrapper function that handles keyword procedures.
+%Our static analysis determines the transformation of a \scheme{chaperone-procedure} application site to be sound only if no contract installed there will ever be blamed.
+%This means that the violation of a single contract installed there prevents the promotion or discharge of \emph{any} of the other contracts installed there.
+%In order for the analysis to be effective, we need more granularity.
+%We preprocess programs to inline certain definitions according to human judgement.
+
+\section{Chaperone Calculus}
+
+We define \chapcalc, or \emph{chaperone calculus}, an extension of the A-normalized $\lambda$-calculus.
+With the introduction of chaperones and impersonators (and the incusion of primitive functions), we can no longer count on the operator of an application to be a closure.
+Thus, we will treat these three categories of values as classes of \emph{operators} and will refer to them collectively as such.
+
+\chapcalc\ inherits application, abstraction, and variable terms from the $\lambda$-calculus.
+It includes simple values from the domain of integers and booleans as well as a set of first-class primitive functions which operate over these values.
+
+The syntactic class $\ae$ signifies \emph{atomic expressions} and includes $\lambda$-terms, variables, and the simple values of booleans, integers, and primitive functions--expressions which will always produce a value, as opposed to raising an error or diverging.
+
+The syntactic class $c$ denotes application terms which are formed by an atomic operator expression followed by a sequence of atomic operand expressions.
+
+The syntatic class of expressions, denoted $e$, includes \scheme{let}, \scheme{letrec}, \scheme{if} expressions as well as \scheme{chaperone-operator} and \scheme{impersonate-operator} forms.
+
+Both \scheme{chaperone-operator} and \scheme{impersonate-operator} exist as the tags of syntactic forms instead of first-class procedure values as they exist in Racket.
+This is solely (is it?) to simplify the presentation of the analysis.
+In the actual analysis, we consider all call sites and add a condition for the sound discharge of a call site that \scheme{chaperone-operator} is the only values to flow to the operator position.
+
+Each \scheme{chaperone-operator} form is annotated with a unique label $\ell$ to keep otherwise identical terms distinguishable.
+
+The second subform of a \scheme{chaperone-operator} or \scheme{impersonate-operator} remains a proper expression to facilitate some of the semantics.
+
+\newcommand{\vx}[0]{\mathbf{x}}
+
+\newcommand{\appe}[2]{(#1\,#2)}
+\newcommand{\lame}[2]{(\lambda\,(#1)\,#2)}
+\newcommand{\chae}[2]{(\mathrm{chaperone\mhyphen operator}\,#1\,#2)^\ell}
+\newcommand{\impe}[2]{(\mathrm{impersonate\mhyphen operator}\,#1\,#2)}
+\newcommand{\lete}[3]{(\mathrm{let}\,((#1)\,#2)\,#3)}
+\newcommand{\letrece}[3]{(\mathrm{letrec}\,((#1)\,#2)\,#3)}
+\newcommand{\ife}[3]{(\mathrm{if}\,#1\,#2\,#3)}
+
+\newcommand{\ande}[2]{(\mathrm{and}\,#1\,#2)}
+\newcommand{\ore}[2]{(\mathrm{or}\,#1\,#2)}
+
+\newcommand{\true}[0]{\mathrm{\#t}}
+\newcommand{\false}[0]{\mathrm{\#f}}
+
+\begin{figure}
+\label{fig:syntax}
+$c:=\appe{\ae}{\ae\,\dots}$
+
+$e:=\lete{x\,\dots}{c}{e}$ where $\vx=\langle x_1,\dots x_n\rangle$
+
+$\letrece{x\,\dots}{c}{e}$ where $\vx=\langle x_1,\dots x_n\rangle$
+
+$\ife{\ae}{e}{e}$
+
+$\chae{\ae}{e}$
+
+$\impe{\ae}{e}$
+
+$\ae:=\lame{x\,\dots}{e}$
+
+$p$
+
+$v$
+
+$x$
+
+values = < > + - not car cdr null? pair? cons null integer? boolean? raise
+
+$0|1|-1|2|-2|\dots$
+
+$\true$
+$\false$
+\end{figure}
+
+A program is a term in the grammar with no free variables and in which all identifiers in the same binding form are pairwise distinct.
+
+We define the semantics of \chapcalc in terms of an abstract machine similar to Felleisen's CESK machine[cite that] in order to ease the transition to a pushdown system.
+In difference, our machine is defined in terms of multiple state variants.
+\begin{itemize}
+\item An \emph{expression} state, tagged $\Sigma_{e}$, corresponds to a traditional CESK state.
+(The order of the components is reversed, however, to aid factoring out common components from among the classes.)
+\item An \emph{apply} state, tagged $\Sigma_{a}$, represents a point of application and dispatches on the operator type (closure, impersonator, or primitive).
+\item A \emph{value} state, tagged $\Sigma_{v}$, represents a point of return and dispatches on the type of the top continuation frame.
+If the continuation is empty, the constituent values are the results of the program.
+\item An \emph{error} state, tagged $\Sigma_!$, represents the arisal of an error and, as the result of the program, may include blame information.
+\item Finally, we define a set of \emph{dummy} states which splits a transition which would otherwise pop and push a frame simulaneously into a sequence of two transitions which performs each separately.
+(This eases further the transition to a pushdown system.)
+\end{itemize}
+
+The result of a program is
+\begin{itemize}
+\item \emph{values} taken from the set of simple values or run-time values of closures, impersonators, and chaperones,
+\item an \emph{error} which may include blame information indicating the source of the error, or
+\item divergence.
+\end{itemize}
+
+
+% raise integer? boolean? not operator? + - * = < > values
+% need primitives to allow contracts to deal higher orderly
+% ae := (lambda s e) x primitive integer boolean
+
+% (ae ae ...)
+% (app-values ae ae)
+% (chaperone-operator ae ae ae)
+% (impersonate-operator ae ae ae)
+% (let ([s call]) e)
+% (letrec ([s call]) e) IS IT POSSIBLE TO LIFT AN EXPRESSION OUT THAT SHOULDN'T BE?
+% (if ae e e)
+% (lambda s e)
+
+% results are:
+% values: closures, chaperones, impersonators, primitives, integers, booleans
+% errors: error, blame L, blame +L, blame -L
+
+% (e e1 ... en),\rho,\sigma,\kappas
+% v = A(e,\rho,\sigma), vi = A(ei,\rho,\sigma)
+% case v
+%   ((lambda s e'),\rho')
+%   if s compatible with n
+%     (e',\rho'',\sigma',\kappas) where \rho'' and \sigma' bind vis according to s
+%     error
+%   primitive
+%   if primitive arity compatible with n
+%     \delta(primitive,v1,...,vn)
+%     error
+%   (chaperone L f neg pos)
+%   (lambda vs
+%     (let ([vs' (app-values neg vs)])
+%       (if (= (length vs)
+%              (length vs'))
+%           (if (and-map chaperone-of? vs' vs)
+%               (let ([rs' (app-values f vs')])
+%                 (if (arity-comp? pos rs')
+%                     (let ([rs (app-values pos rs')])
+%                       (if (= (length rs')
+%                              (length rs))
+%                           (if (and-map chaperone-of? rs rs')
+%                               (app-values values rs)
+%                               (error)) (blame + guard)
+%                           (error))) (blame + guard)
+%                     (error))) (blame + guard)
+%               (error)) (blame - guard)
+%           (error)))) (blame - guard)
+
+\newcommand{\A}[3]{\mathcal{A}(#1,#2,#3)}
+
+\newcommand{\dynbla}[1]{\mathrm{dynamic\mhyphen blame}(#1)}
+
+\newcommand{\ks}[0]{\kappa s}
+\newcommand{\vv}[0]{\mathbf{v}}
+\newcommand{\vvp}[0]{\mathbf{v'}}
+\newcommand{\sexp}[4]{\Sigma_e(#1,#2,#3,#4)}
+\newcommand{\sval}[3]{\Sigma_v(#1,#2,#3)}
+\newcommand{\sapp}[4]{\Sigma_a(#1,#2,#3,#4)}
+\newcommand{\scha}[6]{\Sigma_d(#1,#2,#3,#4,#5,#6)}
+\newcommand{\sdum}[6]{\Sigma_d(#1,#2,#3,#4,#5,#6)}
+\newcommand{\serr}[0]{\mathrm{error}}
+\newcommand{\sbla}[1]{\mathrm{blame}(#1)}
+\newcommand{\app}[4]{\mathrm{apply}(#1,#2,#3,#4)}
+\newcommand{\red}[2]{#1\longrightarrow #2}
+
+\newcommand{\bind}[4]{\mathrm{bind}(#1,#2,#3,#4)}
+
+\newcommand{\clos}[2]{(#1,#2)}
+\newcommand{\chap}[2]{\mathrm{chap}(#1,#2)}
+
+\newcommand{\chak}[1]{\mathrm{chap}_\kappa(\ell,#1)}
+\newcommand{\chacwk}[2]{\mathrm{chap\mhyphen neg\mhyphen ults}_\kappa(\ell,#1,#2)}
+\newcommand{\chacfk}[1]{\mathrm{chap\mhyphen fun\mhyphen ults}_\kappa(\ell,#1)}
+\newcommand{\chacrk}[1]{\mathrm{chap\mhyphen pos\mhyphen ults}_\kappa(\ell,#1)}
+
+
+\newcommand{\letk}[3]{\mathrm{let}_\kappa(#1,#2,#3)}
+\newcommand{\letreck}[3]{\mathrm{letrec}_\kappa(#1,#2,#3)}
+\newcommand{\ifk}[3]{\mathrm{if}_\kappa(#1,#2,#3)}
+\newcommand{\ifd}[3]{\delta_\mathrm{if}(#1,#2,#3)}
+\newcommand{\andk}[2]{\mathrm{and}_\kappa(#1,#2)}
+\newcommand{\ork}[2]{\mathrm{or}_\kappa(#1,#2)}
+
+\subsection{$\chapcalc$ Reduction}
+
+We give the pertinent reduction rules for each form in the grammar.
+
+\subsubsection{application}
+
+\noindent
+$\red{\sexp{\ks}{\sigma}{\rho}{\appe{\ae_f}{\ae_1\,\dots\,\ae_n}}}{\sapp{\ks}{\sigma}{f}{\langle v_1,\dots,v_n\rangle}}$
+
+\noindent
+where $f=\A{\sigma}{\rho}{\ae_f}$ and $v_i=\A{\sigma}{\rho}{\ae_i}$ for $i=1,\dots,n$.
+
+\subsubsection{chaperone-operator}
+
+\noindent
+$\red{\sexp{\ks}{\sigma}{\rho}{\chae{\ae_f}{e_w}}}{\sexp{\chak{f}::\ks}{\sigma}{\rho}{e_w}}$
+
+\noindent
+where $f=\A{\sigma}{\rho}{\ae_f}$ and $\mathrm{operator?}(f)$.
+
+\noindent
+$\red{\sexp{\ks}{\sigma}{\rho}{\chae{\ae_f}{e_w}}}{\sbla{\ell}}$
+
+\noindent
+where $f=\A{\sigma}{\rho}{\ae_f}$ and $\mathrm{operator?}(f)$ does not hold.
+
+\noindent
+$\red{\sval{\chak{f}::\ks}{\sigma}{\vv}}{\sval{\ks}{\sigma}{\langle\chap{\alpha_f}{\alpha_w}\rangle}}$
+
+\noindent
+where $\alpha_f=\mathrm{alloc}(\sigma,f)$ and $\alpha_w=\mathrm{alloc}(\sigma,w)$
+if $\vv=\langle w\rangle$ for some value $w$, $\mathrm{operator?}(w)$, and $\mathrm{arity}(w)=\mathrm{arity}(f)$.
+
+\noindent
+$\red{\sval{\chak{f}::\ks}{\sigma}{\vv}}{\sbla{\ell}}$
+
+\noindent
+if $\vv\ne\langle w\rangle$ for any value $w$, $\mathrm{operator?}(w)$ does not hold, or $\mathrm{arity}(w)\ne\mathrm{arity}(f)$.
+
+%$\red{\sval{\chak{\rho}{e_w}::\ks}{\sigma}{\vv}}{\scha{\ks}{\sigma}{\rho}{e_w}{\ell}{f}}$
+%if $\vv=\langle f\rangle$ for some $f$ such that $\mathrm{operator?}(f)$
+
+%$\red{\sval{\chak{f}::\ks}{\sigma}{\vv}}{\sbla{\ell}}$
+%if $\vv=\langle f\rangle$ for some $f$ where $\mathrm{operator?}(f)$ does not hold
+
+%We assign blame to $\ell$ here because if we were to replace this \scheme{chaperone-operator} form with its first subform, this error would not be raised unless and until the resultant value was applied.
+%Because it is not necessarily applied, deferring the error changes the meaning of the program.
+
+%$\red{\sval{\chapk{\rho}{e_w}::\ks}{\sigma}{\vv}}{\serr}$
+%if $\vv\ne\langle f\rangle$ for any $f$
+
+%$\red{\scha{\ks}{\sigma}{\rho}{e_w}{\ell}{f}}{\sexp{\chawk{f}::\ks}{\sigma}{\rho}{e_w}}$
+
+%$\red{\sval{\chawk{f}::\ks}{\sigma}{\vv}}{\sval{\ks}{\sigma}{?}}$
+%if $\vv=\langle g\rangle$ for some $g$ such that $\mathrm{operator?}(g)$ and %$\mathrm{arity}(f)=\mathrm{arity}(g)$
+
+%$\red{\sval{\chawk{f}::\ks}{\sigma}{\vv}}{\sbla{\ell}}$
+%if $\vv\ne\langle g\rangle$ for any $g$ or $\vv=\langle g\rangle$ for some $g$ where $\mathrm{operator?}(g)$ does not hold or $\mathrm{arity}(f)\ne\mathrm{arity}(g)$
+
+%We assign blame to $\ell$ here for the same reasons we did before.
+
+% we can blame the chaperone creation site which precludes its removal
+% we can blame the wrapper functions for not chaperoning the arguments
+
+\subsubsection{impersonate-operator}
+
+$\red{\sexp{\ks}{\sigma}{\rho}{\impe{e_f}{e_w}}}{}$
+
+\subsubsection{let}
+
+\noindent
+$\red{\sexp{\ks}{\sigma}{\rho}{\lete{x_1\,\dots\, x_n}{e_0}{e_1}}}{\sexp{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\rho}{e_0}}$
+
+\noindent
+where $\vx=\langle x_1,\dots,x_n\rangle$.
+
+$\red{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}{\sexp{\ks}{\sigma'}{\rho'}{e_1}}$ where $(\sigma',\rho')=\bind{\sigma}{\rho}{\vx}{\vv}$ if $|\vx|=|\vv|$
+
+\subsubsection{letrec}
+
+$\red{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}{\serr}$ if $|\vx|\ne|\vv|$
+
+$\red{\sexp{\ks}{\sigma}{\rho}{\letrece{\vx}{e_0}{e_1}}}{\sexp{\letreck{\rho}{\vx}{e_1}::\ks}{\sigma}{\rho}{e_0}}$
+
+\subsubsection{if}
+
+$\red{\sexp{\ks}{\sigma}{\rho}{\ife{e_t}{e_c}{e_a}}}{\sexp{\ifk{\rho}{e_c}{e_a}::\ks}{\sigma}{\rho}{e_t}}$
+
+$\red{\sval{\ifk{\rho}{e_c}{e_a}::\ks}{\sigma}{\vv}}{\sexp{\ks}{\sigma}{\rho}{e_c}}$
+if $\vv=\langle v_0\rangle$ for some $v_0\ne\false$
+
+$\red{\sval{\ifk{\rho}{e_c}{e_a}::\ks}{\sigma}{\vv}}{\sexp{\ks}{\sigma}{\rho}{e_a}}$
+if $\vv=\langle v_0\rangle$ for $v_0=\false$
+
+$\red{\sval{\ifk{\rho}{e_c}{e_a}::\ks}{\sigma}{\vv}}{\serr}$
+if $\vv\ne\langle v_0\rangle$ for any $v_0$
+
+% primitive
+% integer
+% boolean
+% (lambda s e)
+% x
+
+\subsection{apply}
+
+\emph{apply} states serve as the branching point for dispatch on the operator.
+
+\subsubsection{closure}
+
+A closure operator proceeds straightforwardly, extending its environment and evaluating its body or raising an error for an arity mismatch.
+
+$\red{\sapp{\ks}{\sigma}{\clos{\lame{x_1\,\dots\,x_n}{e}}{\rho}}{\vv}}{\sexp{\ks}{\sigma'}{\rho'}{e}}$
+where $\vx=\langle x_1,\dots,x_n\rangle$ and $(\sigma',\rho')=\bind{\sigma}{\rho}{\vx}{\vv}$ if $|\vx|=|\vv|$
+
+$\red{\sapp{\ks}{\sigma}{(\lambda\mathbf{x}.e,\rho)}{\vv}}{\dynbla{\ks}}$
+if $|\vx|\ne|\vv|$
+
+\subsubsection{chaperone}
+
+A chaperone as an operator recurs on its wrapper and pushes a frame to complete the interposition when its wrapper returns.
+
+$\red{\sapp{\ks}{\sigma}{\mathrm{chaperone}(f,w)}{\vv}}{\sapp{\chacwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}$
+
+When the results of its wrapper are obtained, the next state is determined by the results.
+If an additional result is provided and it is an operator, it is situated to intercept function results.
+
+If the number of results obtained is the same as the number of arguments given, the interposition is complete and the function can be evaluated in tail position with respect to the chaperone application.
+
+$\red{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}{\sapp{\ks}{\sigma}{f}{\vvp}}$
+if $|\vv|=|\vvp|$ and $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$
+
+$\red{\sval{\chacfk{w}{\vv}::\ks}{\sigma}{w::\vvp}}{\sdum{\ks}{\sigma}{f}{\vvp}{\ell}{w}}$
+if $|\vv|=|\vvp|$ and $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$
+
+$\red{\sdum{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\sapp{\chacfk{w}::\ks}{\sigma}{f}{\vvp}}$
+
+$\red{\sval{\chacfk{w}::\ks}{\sigma}{\vv}}{\sdum{\ks}{\sigma}{w}{\vv}{\ell}{what}}$
+
+$\red{\sdum{\ks}{\sigma}{w}{\vv}{\ell}{what}}{\sapp{\chacrk{\vv}::\ks}{\sigma}{w}{\vv}}$
+
+$\red{\sval{\chacrk{\vv}::\ks}{\sigma}{\vvp}}{\sval{\ks}{\sigma}{\vvp}}$
+if $|\vv|=|\vvp|$ and $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$
+
+$\red{\sval{\chacrk{\vv}::\ks}{\sigma}{\vvp}}{\sbla{+\ell*}}$
+if $|\vv|=|\vvp|$ but $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$ does not hold
+
+$\red{\sval{\chacrk{\vv}::\ks}{\sigma}{\vvp}}{\sbla{+\ell+}}$
+if $|\vv|\ne|\vvp|$
+
+$\red{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}{\serr}$
+if $|\vv|\ne|\vvp|$ and $|\vv|+1\ne|\vvp|$
+
+$\red{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}{\sbla{special\ell}}$
+if $|\vv|=|\vvp|$ but $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$ does not hold
+
+$\mathrm{apply}(\kappa s,\sigma,\mathrm{chap}(f,w),\mathbf{v})=\mathrm{apply}(\mathrm{chap\mhyphen ults}_\kappa(f,\mathbf{v})::\kappa s,\sigma,w,\mathbf{v})$
+
+%$\dynbla{\chawk{f}::\kappa s}=\sbla{\ell}$
+
+%$\dynbla{\chawk{f}::\kappa s}=\sbla{\ell}$
+
+%$\dynbla{\kappa ::\kappa s}=\dynbla{\kappa s}$ for other $\kappa$
+
+%$\dynbla{\langle\rangle}=\serr$
+
+% we can't have the chaperones carry around their parent chaperone label also because
+% that set will increase as the analysis runs but we don't want to have to prove
+% soundness to update the existing chaperone values (it may not even be sound)
+% however, at each chaperone creation site, we build up a conservative approximation
+% of the set of creators, and we can refer to that.
+% does this suggest that blame should be deferred until the graph is completely built?
+% unless we can target the blame with absolute precision, I think so.
+
+% arity error on application to negative guard:
+% the blame should not rest on the chaperone, because, at creation time, the negative guard was determined to have the same arity as the function, and the error would have been thrown regardless. we might want to defer the arity checking until chaperone application/invocation for symmetry, but the semantics are different: a program with an unused chaperone value might fail if it was checked eagerly, but wouldn't if it was checked lazily.
+% number of results not number of arguments on negative guard:
+% blame negative guard because values would not raise this (which means chaperone discharge would not either)
+% results not chaperone-of? the arguments
+% blame negative guard because values would not produce this
+% if a guard throws an error (transitions to an error, really), we wait until the analysis is over to assign blame because we need to know what's in the stack and we don't get that fully until the end.
+% application of f to guard results will not throw (not because of arity, and also because a user program cannot distinguish between a chaperone of a value and a value)
+% application of pos guard to results of f may throw for arity
+% blame positive guard because values would not do this
+% number of results not number of arguments:
+% blame positive guard because values would not do this
+% results not chaperone-of? the arguments
+% blame positive guard because values would not do this
+
+% at the end, we have a transition graph. there are error states and a few direct blame states. for each chaperone creation state (and so label), we determine the set of signed labels that correspond to chaperone guards that were active at its creation.
+% for every error state, we determine the set of signed labels that correspond to chaperone labels that were active at its raise.
+% we then use these maps to determine which chaperones are blameless!
+
+% NOW, is it true that, when an error is thrown, we can actually bound its source to the current approximation of the stack?
+% is it true that, when a chaperone is created, we can bound its source to the current approximation of the stack?
+% I don't think so because later states may raise errors that are directed to the same place and those errors might not be blamed on the right party.
+
+% ACTUALLY when we apply a chaperone, we check whether the operator can accept that number of arguments. if not, we throw an error (with no blame!)
+% this means that a negative guard can be treated like a positive guard
+
+%Changing the form of \scheme{chaperone-procedure} to take the negative and positive guards more explicitly doesn't actually make it more understandable in the long run, and doing it to avoid dealing with dependent contracts is unnecessary.
+
+%First, in doing so, we have to account for the possibility of the evaluation of the positive guard resulting in an error. Granted, we expect most guards to be variables or lambda expressions, but they are not constrained to be. In the current calculus, the evaluation of a positive guard resulting in an error would be blamed on the chaperone call itself, still opening the door for the negative guard to be replaced with values. In a more accurate calculus, that error would be attributed to the negative guard itself.
+
+\section{Chaperone Discharge and Demotion}
+
+% we aren't giving necessary conditions to discharge chaperones
+% we are giving sufficient conditions
+% there are chaperones that are dischargable but that don't meet our conditions.
+
+Chaperones monitor the procedures they wrap which takes time and space, but this does not represent all of the run-time cost associated with them.
+Chaperones themselves (and impersonators alike) are monitored to meet a minimum standard of well behavedness.
+For instance, the runtime ensures that each guard function returns an appropriate number of results and which number depends on the number of arguments supplied at application.
+In addition, arity compatibility of the positive guard must be checked at application time as it is undecidable in general to determine it before the guard itself and the values to which it is to be applied are in hand.
+Where the standard of well-behavedness of chaperones deviates from that of impersonators is in the restriction that guard results must be the same as the arguments given or chaperones of them.
+
+We expect that a vast majority of impersonators and chaperones will be well-behaved in this sense, and only affect program behavior through one of the guards.
+In particular, we expect that chaperone guards w
+
+
+
+Programs that can result in an error do not implement their specification; in short, they are incorrect.
+The purpose of blame assignment is to facilitate the act of correcting the program.
+We expect a program to result in a blame assignment only rarely.
+We have similar expections for a program to result in divergence, and that specifically at the hand of a chaperone value.
+In fact, we never expect such behavior from correct programs, and while chaperones serve the reality of incorrect programs, the frequency of their complaints diminishes as the programmer applies their feedback.
+
+
+The nature of the programming cycle indicates that there may be some chaperones which, situated within a particular program, do not influence the behavior of the program and are vacuous.
+Such chaperones of course need never be installed at run time.
+We say we \emph{discharge} chaperones when we alter the program to remove their installment.
+Chaperones which may influence program behavior cannot be discharged but may satisfy a weaker condition which allows them to be \emph{demoted} to impersonators, reducing the amount of run-time monitoring that must be dedicated to them.
+
+However, multiple chaperone installations may occur at a given \scheme{chaperone-operator} form during program execution; we cannot, in all circumstances, selectively prevent the creation of a chaperone.
+For this reason, we will, in a sense, treat all chaperones installed at a particular site identically.
+This strengthens the conditions necessary to alter a given site: instead of demonstrating that a single chaperone satisfies a property, we must demonstrate that every chaperone created at that site satisfies that property.
+This constraint at first appears fatal.
+Indeed, in Racket, users typically access chaperone installation through a library wrapper meaning that all chaperones in the entire program share the same installation site.
+This, in turn, means that a given chaperone can be safely discharged only if \emph{all} chaperones can be safely discharged.
+Fortunately, with access to the whole program, we may inline definitions which allows us to multiply the number of creation sites in the program.
+
+% inline call sites to partition the chaperones created at each site
+% show that all chaperones at a given creation site are safe
+% these two work with each other
+% look instead 
+
+Depending on the class of errors which we can rule out statically, we can \emph{discharge} a chaperone which is to prevent it from ever being created.
+However, we distinguish between the possible errors shared by chaperone and impersonator application and the error unique to chaperone application raised when a wrapper function does more than chaperone its arguments.
+If a chaperone does not induce any of the latter type, and sundry other conditions are met, we should be able to \emph{demote} it to an impersonator.
+This avoids the potentially expensive check that the wrapper results are chaperones of the arguments.
+If a wrapper function never throws an error and none of the chaperones it creates ever throw errors, we can remove it.
+We present a two soundness theorems:
+The first soundness theorem provides the conditions whereupon a chaperone can be discharged.
+
+We will now make the notion of safe chaperone discharge and demotion more formal.
+
+We call the wrapper function of the chaperoned operator the \emph{negative guard} corresponding to the notion of negative blame in the blame calculus.
+Similarly, we call the results wrapper the \emph{positive guard}.
+
+% go from "chaperone" to "chaperoned operator"
+A chaperone is \emph{active} if evaluation is within the dynamic extent of its negative or positive guard.
+Chaperone guards may themselves invoke chaperoned operators, so there may be more than one active chaperone at any given time.
+We call the most-recently-activated chaperone the \emph{youngest} chaperone.
+At evaluation time of a chaperone installment site, we say that the youngest chaperone is \emph{dependent} on the site.
+Because a given chaperone installment site may be evaluated multiple times during program execution and from multiple control paths, a chaperone creation site may have several dependent chaperones.
+
+%In contracts, one can talk about creation time--the time the contract value is created--projection time--the time the contract is attached to a value--and application time--the time that the contracted value is applied to its argument.
+%These times are not contiguous and may overlap in the presence of dependent contracts.
+%The evaluation time of the wrapper corresponds to creation time.
+%The chaperone-operator form corresponds to the projection time.
+%The application of the negative wrapper of the chaperoned value corresponds to application time.
+%Within the application, the evaluation of the positive wrapper corresponds to creation time.
+%At return, the application of the positive wrapper corresponds to application time.
+
+We now explore the conditions under which a chaperone can be removed from the program.
+
+Consider the installation of a chaperone on a first-order procedure by
+\begin{schemedisplay}
+(chaperone-operator
+ (lambda (n) (+ n 1))
+ (lambda (n)
+    (if (integer? n)
+        (values (lambda (n)
+                  (if (integer? n)
+                      n
+                      (raise)))
+                n)
+        (raise))))
+\end{schemedisplay}
+Even without program context, we can make judgements strong enough to weaken this installation site.
+
+First, observe that the positive guard (the first argument of the \scheme{values} call) neither guard installs a chaperone, either directly or indirectly.
+Based on this and the fact that it is independent of the negative guard argument, arity-compatible with the result arity of the function, and type-compatible with the result of the function (which is to say that no resultant value of the function is sufficient to make the guard throw an error, and, finally, that it is an atomic expression and so must not diverge, we can remove it, transforming the installation expression to
+\begin{schemedisplay}
+(chaperone-operator
+ (lambda (n) (+ n 1))
+ (lambda (n)
+    (if (integer? n)
+        n
+        (raise))))
+\end{schemedisplay}
+with no change in meaning to the program.
+
+We now have two opportunities for optimization which have disparate conditions.
+First, we can see that the remaining guard will never install a chaperone on one of its arguments as they are first-order values.
+If, with respect to the program, the guard never raises an error, then it acts as the identity function\footnote{Specifically, it acts like \scheme{values}, the identity function for any number of values}.
+With these two conditions met, we can replace the entire form with \scheme{(lambda (n) (+ n 1))}.
+
+If our analysis cannot rule out the possibility of guard error arisal, we cannot soundly remove it.
+We may be able to weaken the run-time monitoring necessary, however.
+If we can establish that this chaperone installment site has no dependent chaperones, we can replace it with an \scheme{impersonate-operator} site.
+In fact, this weakening is independent of the omission of the positive guard from the form.
+In general, if all the chaperones which flow from an installment site at most chaperone their arguments, and the site itself has no dependent chaperones, it can be replaced with an equivalent \scheme{impersonate-procedure} site, regardless of the error or divergence behavior of the value at creation, projection, or application time.
+
+
+
+
+We might surmise that this fact alone would allow us to transform this \scheme{chaperone-operator} form to an \scheme{impersonate-operator} form which would avoid the chaperone-specific monitoring at runtime.
+Suppose, however, that this installment site appeared within the body of a procedure used as a chaperone guard.
+
+Next, observe that the argument and results arity of the guards are completely compatible with the arity of the function.
+In fact, the only possible way this chaperone would change the behavior of the program is by signalling an error when the argument or result is not 
+
+If a chaperone never throws an error and all of the chaperone creation sites that depend on it can be discharged, it can be discharged.
+
+If all of the chaperones created at a chaperone creation site can be discharged, the creation site can be discharged.
+
+%possible side-effects
+%error on creation (not same arity, not procedure arg0, not procedure arg1)
+%divergence on arg1
+%error thrown by args wrapper
+%divergence on args wrapper (extra argument)
+%divergence on args wrapper (otherwise)
+%args wrapper returns wrong number of results
+%extra result not an operator
+%args wrapper results not chaperones of arguments
+%ults wrapper doesn't accept number of results
+%ults wrapper throws an error
+%divergence on ults wrapper
+%ults wrapper returns wrong number of results
+%ults wrapper does not chaperone its arguments
+
+\subsubsection{Impersonator errors}
+\begin{enumerate}
+\item error on creation (not same arity, not procedure arg0, not procedure arg1)
+\item divergence on arg1
+\item error thrown by args wrapper
+\item divergence on args wrapper (extra argument)
+\item divergence on args wrapper (otherwise)
+\item args wrapper returns wrong number of results
+\item extra result not an operator
+\item ults wrapper doesn't accept number of results
+\item ults wrapper throws an error
+\item divergence on ults wrapper
+\item ults wrapper returns wrong number of results
+\end{enumerate}
+
+\subsubsection{Chaperone-specific errors}
+\begin{enumerate}
+\item args wrapper results not chaperones of arguments
+\item ults wrapper does not chaperone its arguments
+\end{enumerate}
+
+We can be more precise about the possible sources of side effects to reveal places to replace wrapper functions individually.
+
+A positive guard can be discharged if the evaluation to its value converges, it always accepts the number of results of the function, it always returns the same number of results, its results are always chaperones of its arguments, it never raises an error (explicitly), it doesn't diverge, and all the chaperone creation sites that depend on it can be discharged.
+
+A negative guard can be discharged (changed to values) if the evaluation to its value converges, it has the same arity of the function, it returns the correct number of arguments, its extra argument is a function, its results are always chaperones of its arguments, it doesn't divergence, all chaperone creation sites that depend on it can be discharged, and the positive guard it returns can be discharged.
+
+% these conditions are stronger than necessary in the sense that the definition of dependence is not precise but a conservative approximation, and not every value that meets the precise condition would meet these stronger conditions, but it is easier to determine that these stronger conditions hold.
+
+A chaperone can be discharged if its (negative) guard can be discharged.
+
+A chaperone creation site can be discharged if all the chaperones it creates can be discharged.
+
+We assume that any chaperone installed while a chaperone is active 
+
+A chaperone can be demoted if the results of its positive and negative guard are only ever chaperones of the arguments (excepting the extra result for the negative guard), and all chaperone 
+
+Our analysis calculates a conservative approximation of the dependence relation.
+
+In addition, our analysis calculates a conservative approximation of the set of dependent chaperones.
+
+We build a control flow graph.
+At each control state, we can calulate a description of the possible stacks.
+First, we consider control states where a chaperone is being created.
+The set of possible stacks at each control state reveals the set of creation sites of chaperones upon which that creation site depends.
+Next, we consider terminal error control states.
+The set of possible stacks at each control state reveals the set of creation sites of chaperones that are responsible for the error.
+
+\section{Limitations}
+
+Our analysis applies equally well if we extend the language with more referentially transparent primitives or macro-expressible constructs such as \scheme{and} and \scheme{or} forms.
+We can even add an error-catching facility but we must be careful in our analysis.
+
+In Racket, \scheme{chaperone-procedure} is a primitive procedure--not a special form.
+\scheme{app-values}
+
 
 \section{Static Analysis}
 
@@ -435,6 +1105,56 @@ Introspective pushdown control-flow analysis admits a description of possible st
 Introspective pushdown control-flow analysis (IPDCFA) can provide a conservative approximation of possible stacks at each program point described with regular expressions. Then, we look at states with expressions \scheme{(chaperone-procedure f neg-wrap pos-wrap)} and the possible stacks at those particular states. If any of the stacks contain a chaperone activation frame, we conservatively assume that all chaperones created at this program point are children of that chaperone. Because we have a conservative approximation of possible stacks, it may be that multiple activation frames may be relevant (either through alternation or nested where it is absent in one branch). We assign all of the chaperone values as parents to chaperones created at this site, and, when we make our judgments, must ensure that the properties hold for all to discharge them.
 
 We perform a pushdown control-
+
+The set of possible sequences of stack frames at a particular program point is a regular language.
+An introspective pushdown control-flow analysis provides us with a regular expression encoding this language.
+A string in the language is a sequence of frames ordered from oldest to youngest.
+
+We are interested in chaperone activation frames, a subset of all possible frames, and so a subset of the stack alphabet.
+In particular, we are interested in the subset of youngest such frames.
+Consider the set of strings--stack sequences--that comprise the language.
+Filter the characters in each string so that only characters from the set of interest appear.
+Disregard the empty string (and any strings that were fully-consumed by the filtering process).
+Consider the set of all final characters in the remaining strings.
+Each character in the set represents a chaperone activation frame, and is branded with the label of the active chaperone's creation site.
+Thus, this set represents the possible creation sites of active chaperones.
+
+We can perform the same operation on a regular expression by introducing a distinguished character $\bullet$ which represents a sequence of characters that have been filtered away.
+
+Given a regular expression (either a character, a concatenation, a union, or a Kleene star), define $f:RE \longrightarrow RE$ as follows
+$f(\bullet)=\bullet$
+
+$f(c)=c$
+
+$f(\bullet\cdot L_1)=L_1$
+
+$f(L_0\cdot\bullet)=L_0$
+
+$f(L_0\cdot L_1)=e\cdot L_1$
+
+$f(\bullet^*)=\bullet$
+
+$f(L_0^*)=L_0^*$
+
+$f(\bullet\cup L_1)=L_1$
+
+$f(L_0\cup\bullet)=L_0$
+
+$f(L_0\cup L_1)=L_0\cup L_1$
+
+Because $f$ ``absorbs'' holes, a hole will only occur if the entire language is replaced by the language that contains only the empty string.
+We define $h$ to obtain the set of stack frames by the following:
+$h(\bullet)=\emptyset$
+
+$h(c)=\{c\}$
+
+$h(L_0\cdot L_1)=h(L_0)\cup h(L_1)$ if $L_1$ is nullable; $h(L_1)$ otherwise.
+
+$h(L_0\cup L_1)=h(L_0)\cup h(L_1)$
+
+$h(L^*)=h(L)$
+
+$g$ (the replacement function) is homomorphic in the regular combinators. 
 
 %\section{Chaperone Erasure Theorem}
 
@@ -836,11 +1556,33 @@ conclusion describing limitations and intended direction
 %Because the contract system is implemented with chaperones, many chaperones perform no side-effects other than 
 %a blame 
 
+\section{Static Analysis}
+
+Introspective pushdown control-flow analysis (IPDCFA) was developed to allow abstract garbage collection to apply to the standard pushdown control-flow analysis.
+By transforming a pushdown system to a Dyck state graph, we obtain a finite graph of control states and a finite desciption of the possible stacks at that program point.
+This provided a root set from which abstract garbage collection could work.
+
+It also opened the door for static analysis of programming languages that require--or can be put in terms of--stack inspection.
+Our analysis of chaperones requires that we determine the source label of all created chaperones and the source label of the chaperone which created it.
+Essentially, we need to know the 
+
+\section{Limitations}
+
+\scheme{app-values} increases the expressiveness of the language.
+(We do not have to specify the number of arguments to a function statically.)
+The structure of a list is recursive.
+We can untie the recursive definition by directing through the store; we took this approach with environments.
+We could look into this, but that means the length of the list could vary.
+That could \emph{really} destroy precision, but we need to investigate it further.
+
+\emph{rest values} increase the expressiveness of the language. They are very related to \scheme{app-values}.
+\scheme{chaperone-operator} as a primitive (as opposed to a form) increases the expressiveness of the language.
+
 \section{Conclusion}
 
 Interposition primitives exist for more than functions in Racket: boxes, vectors, hash tables, continuation mark keys, etc.
 
-We omitted from chapcalc a few primitives that exist in Racket that must be accounted for by our analysis.
+We omitted from \chapcalc a few primitives that exist in Racket that must be accounted for by our analysis.
 A call \scheme{(chaperone-of? f g)} determines whether \scheme{f} is \scheme{equal?} to \scheme{g} modulo chaperones.
 In other words, it determines whether \scheme{f} could be constructed from the parts of \scheme{g} and some chaperone installation.
 This primitive presents no problem for chaperone discharge as \scheme{(chaperone-of? f f)} always evaluates to \scheme{#t}.
