@@ -16,31 +16,10 @@
         (string->symbol (format "L~a" i))
         (set! i (add1 i))))))
 
-(define (pspec? ps)
-  (or (null? ps)
-      (and (pair? ps)
-           (and (symbol? (car ps))
-                (pspec? (cdr ps))))
-      (symbol? ps)))
-
-(define (pspec-posi ps)
-  (if (or (null? ps)
-          (symbol? ps))
-     null
-     (cons (car ps) (pspec-posi (cdr ps)))))
-
-(define (pspec-rest ps)
-  (and (not (null? ps))
-       (if (pair? ps)
-          (pspec-rest (cdr ps))
-          ps)))
-
-(define (ρ-extend xs r ρ)
-  (let* ([ρ (for/fold ([ρ ρ])
-              ([x (in-list xs)])
-              (set-add ρ x))]
-         [ρ (if r (set-add ρ r) ρ)])
-    ρ))
+(define (ρ-extend xs ρ)
+  (for/fold ([ρ ρ])
+    ([x (in-list xs)])
+    (set-add ρ x)))
 
 (define (parse e)
   (define (inner e ρ)
@@ -52,59 +31,35 @@
                        (inner (first e) ρ)
                        (map (λ (e) (inner e ρ)) (rest e)))
                 (match e
-                  [`(λ ,ps ,e)
-                   (if (pspec? ps)
-                       (let ([xs (pspec-posi ps)]
-                             [r (pspec-rest ps)])
-                         (lam-e (fresh-label) xs r (inner e (ρ-extend xs r ρ))))
-                       (error 'parse "bad parameter specification: ~a" ps))]
-                  [`(let ([,ps ,e0]) ,e1)
-                   (if (pspec? ps)
-                       (let ([xs (pspec-posi ps)]
-                             [r (pspec-rest ps)])
-                         (let-e (fresh-label) xs r
-                                (inner e0 ρ)
-                                (inner e1 (ρ-extend xs r ρ))))
-                       (error 'parse "bad parameter specification: ~a" ps))]
-                  [`(letrec ([,ps ,e0]) ,e1)
-                   (if(pspec? ps)
-                      (let ([xs (pspec-posi ps)]
-                            [r (pspec-rest ps)])
-                        (letrec-e (fresh-label) xs r
-                                  (inner e0 (ρ-extend xs r ρ))
-                                  (inner e1 (ρ-extend xs r ρ))))
-                      (error 'parse "bad parameter specification: ~a" ps))]
+                  [`(λ ,xs ,e)
+                   (if (andmap symbol? xs)
+                       (lam-e (fresh-label) xs (inner e (ρ-extend xs ρ)))
+                       (error 'parse "bad parameter specification: ~a" xs))]
+                  [`(let ([,xs ,e0]) ,e1)
+                   (if (andmap symbol? xs)
+                       (let-e (fresh-label) xs
+                              (inner e0 ρ)
+                              (inner e1 (ρ-extend xs ρ)))
+                       (error 'parse "bad parameter specification: ~a" xs))]
+                  [`(letrec ([,xs ,e0]) ,e1)
+                   (if (andmap symbol? xs)
+                       (letrec-e (fresh-label) xs
+                                 (inner e0 (ρ-extend xs ρ))
+                                 (inner e1 (ρ-extend xs ρ)))
+                       (error 'parse "bad parameter specification: ~a" xs))]
                   [`(if ,e0 ,e1 ,e2)
                    (if-e (fresh-label) 
                          (inner e0 ρ)
                          (inner e1 ρ)
                          (inner e2 ρ))]
-                  [`(handle ,e0 ,e1)
-                   (handle-e (fresh-label)
-                             (inner e0 ρ)
-                             (inner e1 ρ))]
-                  [`(and ,e0 ,e1)
-                   (and-e (fresh-label) 
-                          (inner e0 ρ)
-                          (inner e1 ρ))]
-                  [`(or ,e0 ,e1)
-                   (or-e (fresh-label) 
-                         (inner e0 ρ)
-                         (inner e1 ρ))]
-                  [`(apply ,e0 ,e1)
-                   (app-values-e (fresh-label)
-                                 (inner e0 ρ)
-                                 (inner e1 ρ))]
-                  [`(chaperone-operator ,e0 ,e1 ,e2)
+                  [`(chaperone-operator ,e0 ,e1)
                    (ch-op-e (fresh-label)
                             (inner e0 ρ)
-                            (inner e1 ρ)
-                            (inner e2 ρ))]
-                  [`(impersonate-operator ,e0 ,e1 ,e2)
+                            (inner e1 ρ))]
+                  [`(impersonate-operator ,e0 ,e1)
                    (im-op-e (fresh-label)
                             (inner e0 ρ)
-                            (inner e1 ρ)
-                            (inner e2 ρ))]
+                            (inner e1 ρ))]
                   [`(,e0 . ,es)
                    (app-e (fresh-label)
                           (inner e0 ρ)
@@ -128,27 +83,23 @@
      `(,(unparse e0) . ,(map unparse es))]
     [(bool-e L p)
      p]
-    [(ch-op-e L e0 e1 e2)
+    [(ch-op-e L e0 e1)
      `(chaperone-operator ,(unparse e0)
-                          ,(unparse e1)
-                          ,(unparse e2))]
+                          ,(unparse e1))]
     [(if-e L e0 e1 e2)
      `(if ,(unparse e0)
           ,(unparse e1)
           ,(unparse e2))]
     [(int-e L i)
      i]
-    [(lam-e L xs r e0)
-     `(λ ,(foldr cons (or r null) xs) ,(unparse e0))]
-    [(let-e L xs r e0 e1)
-     `(let ([,(foldr cons (or r null) xs) ,(unparse e0)])
+    [(lam-e L xs e0)
+     `(λ ,xs ,(unparse e0))]
+    [(let-e L xs e0 e1)
+     `(let ([,xs ,(unparse e0)])
         ,(unparse e1))]
-    [(letrec-e L xs r e0 e1)
-     `(letrec ([,(foldr cons (or r null) xs) ,(unparse e0)])
+    [(letrec-e L xs e0 e1)
+     `(letrec ([,xs ,(unparse e0)])
         ,(unparse e1))]
-    [(or-e L e0 e1)
-     `(or ,(unparse e0)
-          ,(unparse e1))]
     [(prim-e L id)
      id]
     [(ref-e L x)

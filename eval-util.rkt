@@ -11,8 +11,19 @@
          (struct-out primitive)
          (struct-out λC:error)
          (struct-out λC:blame)
-         (struct-out λC:blame+)
+         (struct-out λC:blame0)
+         (struct-out λC:blame1)
+         (struct-out λC:blame2)
+         (struct-out λC:blame3)
+         (struct-out λC:blame4)
+         (struct-out λC:blame5)
+         (struct-out λC:blame6)
+         (struct-out λC:blame7)
+         (struct-out λC:blame8)
+         (struct-out λC:blame9)
+         (struct-out λC:blame10)
          (struct-out λC:blame-)
+         (struct-out λC:blame+)
          chaperone-of?
          bind
          pre-bind
@@ -37,12 +48,23 @@
 
 (struct λC:error () #:transparent)
 (struct λC:blame (L) #:transparent)
-(struct λC:blame+ λC:blame () #:transparent)
+(struct λC:blame0 λC:blame () #:transparent)
+(struct λC:blame1 λC:blame () #:transparent)
+(struct λC:blame2 λC:blame () #:transparent)
+(struct λC:blame3 λC:blame () #:transparent)
+(struct λC:blame4 λC:blame () #:transparent)
+(struct λC:blame5 λC:blame () #:transparent)
+(struct λC:blame6 λC:blame () #:transparent)
+(struct λC:blame7 λC:blame () #:transparent)
+(struct λC:blame8 λC:blame () #:transparent)
+(struct λC:blame9 λC:blame () #:transparent)
+(struct λC:blame10 λC:blame () #:transparent)
 (struct λC:blame- λC:blame () #:transparent)
+(struct λC:blame+ λC:blame () #:transparent)
 
-(struct closure (xs r ρ e) #:transparent)
-(struct chaperone (L f neg pos) #:transparent)
-(struct impersonator (L f neg pos) #:transparent)
+(struct closure (xs ρ e) #:transparent)
+(struct chaperone (L f -) #:transparent)
+(struct impersonator (L f -) #:transparent)
 (struct primitive (id f +) #:transparent)
 
 (define (chaperone-of? v0 v1)
@@ -50,10 +72,8 @@
     [(and (chaperone? v0)
           (chaperone? v1))
      (or (equal? v0 v1)
-         (and (chaperone-of? (chaperone-neg v0)
-                             (chaperone-neg v1))
-              (chaperone-of? (chaperone-pos v0)
-                             (chaperone-pos v1))
+         (and (chaperone-of? (chaperone-- v0)
+                             (chaperone-- v1))
               (chaperone-of? (chaperone-f v0)
                              (chaperone-f v1)))
          (chaperone-of? (chaperone-f v0) v1))]
@@ -66,19 +86,14 @@
 
 (define operator-arity
   (match-lambda
-    [(closure xs r ρ e)
-     (signature-arity xs r)]
-    [(chaperone L f neg pos)
+    [(closure xs ρ e)
+     (length xs)]
+    [(chaperone L f -)
      (operator-arity f)]
-    [(impersonator L f neg pos)
+    [(impersonator L f -)
      (operator-arity f)]
     [(primitive id f +)
      +]))
-
-(define (signature-arity xs r)
-  (if r
-      (arity-at-least (length xs))
-      (length xs)))
 
 (define (operator? f)
   ; this doesn't need to be recursive, does it?
@@ -94,56 +109,36 @@
   (with-handlers ([exn:fail? (λ (_) (raise (λC:error)))])
     (list->value (call-with-values (λ () (apply f vs)) list))))
 
-(define (arity-compatible? xs r vs)
-  (let ([m (length xs)])
-    (arity-includes? (if r (arity-at-least m)  m)
-                     (length vs))))
+(define (arity-compatible? xs vs)
+  (= (length xs)
+     (length vs)))
 
-(define (bind σ ρ xs r vs)
-  (if (arity-compatible? xs r vs)
-      (let ([n (length xs)])
-        (let*-values ([(σ ρ) (for/fold ([σ σ]
-                                        [ρ ρ])
-                               ([x xs]
-                                [v (take vs n)])
-                               (let ([α (alloc x)])
-                                 (values (hash-set σ α v)
-                                         (hash-set ρ x α))
-                                 #;(values (hash-update σ α (λ (s) (set-add s v)) (set))
-                                           (hash-set ρ x α))))]
-                      [(σ ρ) (if r
-                                 (let ([α (alloc r)])
-                                   (values (hash-set σ α (drop vs n))
-                                           (hash-set ρ r α))
-                                   #;(values (hash-update σ α (λ (s) (set-add s (drop vs n))) (set))
-                                             (hash-set ρ r α)))
-                                 (values σ ρ))])
-          (values σ ρ)))
-      (error 'bind "~a ~a ~a" xs r vs)))
+(define (bind σ ρ xs vs)
+  (if (arity-compatible? xs vs)
+      (for/fold ([σ σ]
+                 [ρ ρ])
+        ([x (in-list xs)]
+         [v (in-list vs)])
+        (let ([α (alloc x)])
+          (values (hash-set σ α v)
+                  (hash-set ρ x α))
+          #;(values (hash-update σ α (λ (s) (set-add s v)) (set))
+                    (hash-set ρ x α))))
+      (error 'bind "~a ~a" xs vs)))
 
-(define (pre-bind ρ xs r)
-  (let* ([ρ (for/fold ([ρ ρ])
-              ([x xs])
-              (let ([α (alloc x)])
-                (hash-set ρ x α)))]
-         [ρ (if r
-                (let ([α (alloc r)])
-                  (hash-set ρ r α))
-                ρ)])
-    ρ))
+(define (pre-bind ρ xs)
+  (for/fold ([ρ ρ])
+    ([x xs])
+    (let ([α (alloc x)])
+      (hash-set ρ x α))))
 
-(define (rec-bind σ ρ xs r vs)
-  (if (arity-compatible? xs r vs)
-      (let ([n (length xs)])
-        (let* ([σ (for/fold ([σ σ])
-                    ([x xs]
-                     [v (take vs n)])
-                    (hash-set σ (hash-ref ρ x) v))]
-               [σ (if r
-                      (hash-set σ (hash-ref ρ r) (drop vs n))
-                      σ)])
-          σ))
-      (error 'rec-bind "~a ~a ~a" xs r vs)))
+(define (rec-bind σ ρ xs vs)
+  (if (arity-compatible? xs vs)
+      (for/fold ([σ σ])
+        ([x (in-list xs)]
+         [v (in-list vs)])
+        (hash-set σ (hash-ref ρ x) v))
+      (error 'rec-bind "~a ~a" xs vs)))
 
 (define (restrict ρ xs)
   (for/hasheq ([x (in-set xs)])

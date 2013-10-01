@@ -42,12 +42,12 @@
     (if (atom? e)
         (k e (λ (x0) x0))
         (match e
-          [(lam-e L xs r e0)
-           (k (lam-e L xs r (A2 e0 (λ (c0 k0) (k0 c0)))) (λ (e0) e0))]
+          [(lam-e L xs e0)
+           (k (lam-e L xs (A2 e0 (λ (c0 k0) (k0 c0)))) (λ (e0) e0))]
           [e
            (A1 e (λ (b0 k0)
                    (let ([x (fresh type)])
-                     (k (ref-e (fresh 'A) x) (λ (e0) (k0 (let-e (fresh 'A) (list x) #f b0 e0)))))))])))
+                     (k (ref-e (fresh 'A) x) (λ (e0) (k0 (let-e (fresh 'A) (list x) b0 e0)))))))])))
   
   (define (A1 e k)
     (if (<=A0? e)
@@ -57,22 +57,10 @@
            (A0 'fun e (λ (a0 k0)
                         (A* es (λ (a* k*)
                                  (k (app-e L a0 a*) (λ (e0) (k0 (k* e0))))))))]
-          [(ch-op-e L e0 e1 e2)
-           (A0 'oned e0 (λ (a0 k0)
-                          (A0 'oner e1 (λ (a1 k1)
-                                         (k (ch-op-e L a0 a1) (λ (e0) (k0 (k1 e0))))))))]
-          [(im-op-e L e0 e1 e2)
-           (A0 'ated e0 (λ (a0 k0)
-                          (A0 'ator e1 (λ (a1 k1)
-                                         (k (im-op-e a0 a1) (λ (e0) (k0 (k1 e0))))))))]
-          [(or-e L e0 e1)
-           (A0 'temp e0 (λ (a0 k0)
-                          (A2 e1 (λ (a1 k1)
-                                   (k (if-e L
-                                            a0
-                                            a0
-                                            (k1 a1))
-                                      k0)))))])))
+          [(ch-op-e L e0 e1)
+           (A0 'fun e0 (λ (a0 k0) (k (ch-op-e L a0 (A2 e1 (λ (c1 k1) (k1 c1)))) k0)))]
+          [(im-op-e L e0 e1)
+           (A0 'fun e0 (λ (a0 k0) (k (im-op-e L a0 (A2 e1 (λ (c1 k1) (k1 c1)))) k0)))])))
   
   (define (A2 e k)
     (if (<=A1? e)
@@ -85,14 +73,14 @@
                                    (A2 e1 (λ (c1 k1) (k1 c1)))
                                    (A2 e2 (λ (c2 k2) (k2 c2))))
                              k0)))]
-          [(let-e L xs r e0 e1)
+          [(let-e L xs e0 e1)
            (A1 e0 (λ (b0 k0)
                     (A2 e1 (λ (c1 k1)
-                             (k (let-e L xs r b0 (k1 c1)) (λ (e0) (k0 e0)))))))]
-          [(letrec-e L xs r e0 e1)
+                             (k (let-e L xs b0 (k1 c1)) (λ (e0) (k0 e0)))))))]
+          [(letrec-e L xs e0 e1)
            (A1 e0 (λ (b0 k0)
                     (A2 e1 (λ (c1 k1)
-                             (k (letrec-e L xs r b0 (k1 c1)) (λ (e0) (k0 e0)))))))])))
+                             (k (letrec-e L xs b0 (k1 c1)) (λ (e0) (k0 e0)))))))])))
   
   (A2 e (λ (c0 k0) (k0 c0))))
 

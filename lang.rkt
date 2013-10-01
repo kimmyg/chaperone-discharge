@@ -10,11 +10,7 @@
          (struct-out let-e)
          (struct-out letrec-e)
          (struct-out app-e)
-         (struct-out app-values-e)
          (struct-out if-e)
-         (struct-out and-e)
-         (struct-out or-e)
-         (struct-out handle-e)
          (struct-out prim-e)
          (struct-out ch-op-e)
          (struct-out im-op-e)
@@ -25,24 +21,17 @@
 (struct ref-e exp (x) #:transparent)
 (struct int-e exp (n) #:transparent)
 (struct bool-e exp (p) #:transparent)
-(struct lam-e exp (xs r e) #:transparent)
-(struct let-e exp (xs r e0 e1) #:transparent)
-(struct letrec-e exp (xs r e0 e1) #:transparent)
+(struct lam-e exp (xs e) #:transparent)
+(struct let-e exp (xs e0 e1) #:transparent)
+(struct letrec-e exp (xs e0 e1) #:transparent)
 (struct app-e exp (e es) #:transparent)
-(struct app-values-e exp (e0 e1) #:transparent)
 (struct if-e exp (e0 e1 e2) #:transparent)
-(struct and-e exp (e0 e1) #:transparent)
-(struct or-e exp (e0 e1) #:transparent)
-(struct handle-e exp (e0 e1) #:transparent)
 (struct prim-e exp (id) #:transparent)
-(struct ch-op-e exp (f neg pos) #:transparent)
-(struct im-op-e exp (f neg pos) #:transparent)
+(struct ch-op-e exp (f w) #:transparent)
+(struct im-op-e exp (f w) #:transparent)
 
-(define (bind-free-with xs r ys)
-  (let ([xs (foldl (λ (x xs) (set-remove xs x)) ys xs)])
-    (if r
-        (set-remove xs r)
-        xs)))
+(define (bind-free-with xs ys)
+  (foldl (λ (x xs) (set-remove xs x)) ys xs))
 
 (define free-variables
   (match-lambda
@@ -52,32 +41,24 @@
      (set-union (free-variables e0)
                 (free-variables e1)
                 (free-variables e2))]
-    [(and-e _ e0 e1)
-     (set-union (free-variables e0)
-                (free-variables e1))]
-    [(or-e _ e0 e1)
-     (set-union (free-variables e0)
-                (free-variables e1))]
     [(ref-e _ x)
      (seteq x)]
     [(or (int-e _ _)
          (bool-e _ _)
          (prim-e _ _))
      (seteq)]
-    [(lam-e _ xs r e)
-     (bind-free-with xs r (free-variables e))]
-    [(let-e _ xs r e0 e1)
+    [(lam-e _ xs e)
+     (bind-free-with xs (free-variables e))]
+    [(let-e _ xs e0 e1)
      (set-union (free-variables e0)
-                (bind-free-with xs r (free-variables e1)))]
-    [(letrec-e _ xs r e0 e1)
-     (bind-free-with xs r (set-union (free-variables e0)
-                                     (free-variables e1)))]
-    [(ch-op-e _ e0 e1 e2)
+                (bind-free-with xs (free-variables e1)))]
+    [(letrec-e _ xs e0 e1)
+     (bind-free-with xs (set-union (free-variables e0)
+                                   (free-variables e1)))]
+    [(ch-op-e _ e0 e1)
      (set-union (free-variables e0)
-                (free-variables e1)
-                (free-variables e2))]
-    [(im-op-e _ e0 e1 e2)
+                (free-variables e1))]
+    [(im-op-e _ e0 e1)
      (set-union (free-variables e0)
-                (free-variables e1)
-                (free-variables e2))]))
+                (free-variables e1))]))
 
