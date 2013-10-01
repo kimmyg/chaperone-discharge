@@ -52,6 +52,9 @@
      (set-union (free-variables e0)
                 (free-variables e1)
                 (free-variables e2))]
+    [(and-e _ e0 e1)
+     (set-union (free-variables e0)
+                (free-variables e1))]
     [(or-e _ e0 e1)
      (set-union (free-variables e0)
                 (free-variables e1))]

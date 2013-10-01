@@ -41,8 +41,8 @@
 (struct λC:blame- λC:blame () #:transparent)
 
 (struct closure (xs r ρ e) #:transparent)
-(struct chaperone (L P f neg pos) #:transparent)
-(struct impersonator (L P f neg pos) #:transparent)
+(struct chaperone (L f neg pos) #:transparent)
+(struct impersonator (L f neg pos) #:transparent)
 (struct primitive (id f +) #:transparent)
 
 (define (chaperone-of? v0 v1)
@@ -67,13 +67,18 @@
 (define operator-arity
   (match-lambda
     [(closure xs r ρ e)
-     (if r (arity-at-least (length xs)) (length xs))]
-    [(chaperone _ _ f neg pos)
+     (signature-arity xs r)]
+    [(chaperone L f neg pos)
      (operator-arity f)]
-    [(impersonator _ _ f neg pos)
+    [(impersonator L f neg pos)
      (operator-arity f)]
     [(primitive id f +)
      +]))
+
+(define (signature-arity xs r)
+  (if r
+      (arity-at-least (length xs))
+      (length xs)))
 
 (define (operator? f)
   ; this doesn't need to be recursive, does it?
@@ -148,10 +153,11 @@
   (case id
     [(=) (primitive '= = 2)]
     [(<) (primitive '< < 2)]
+    [(>) (primitive '> > 2)]
     [(*) (primitive '* * 2)]
     [(+) (primitive '+ + 2)]
     [(-) (primitive '- - 2)]
-    [(raise) (primitive 'raise (λ () (raise (λC:error))) 0)]
+    [(raise) (primitive 'raise (λ () (raise (λC:error))) (arity-at-least 0))]
     [(null) (primitive 'null null #f)]
     [(null?) (primitive 'null? null? 1)]
     [(cons) (primitive 'cons cons 2)]

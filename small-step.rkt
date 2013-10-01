@@ -27,6 +27,7 @@
 (struct if-κ κ (ρ e0 e1) #:transparent)
 (struct let-κ κ (xs r ρ e) #:transparent)
 (struct letrec-κ κ (xs r ρ e) #:transparent)
+(struct and-κ κ (ρ e) #:transparent)
 (struct or-κ κ (ρ e) #:transparent)
 
 (struct Σ (κs σ) #:transparent)
@@ -35,17 +36,17 @@
 (struct Σ! Σ (e) #:transparent) ; contains blame
 
 (define (app κs σ op vs)
-  (match op
-    [(chaperone L P f neg pos)
-     (app (cons (chap-neg-ults-κ L f pos vs) κs) σ neg vs)]
-    [(closure xs r ρ e)
-     (let-values ([(σ ρ) (bind σ ρ xs r vs)])
-       (Σe κs σ ρ e))]
-    [(primitive id f +)
-     (if (arity-includes? + (length vs))
-         (with-handlers ([λC:error? (λ (e) (Σ! κs σ (assign-blame κs)))])
-           (Σv κs σ (native-apply f vs)))
-         (Σ! κs σ (assign-blame κs)))]))
+  (if (arity-includes? (operator-arity op) (length vs))
+      (match op
+        [(chaperone L f neg pos)
+         (app (cons (chap-neg-ults-κ L f pos vs) κs) σ neg vs)]
+        [(closure xs r ρ e)
+         (let-values ([(σ ρ) (bind σ ρ xs r vs)])
+           (Σe κs σ ρ e))]
+        [(primitive id f +)
+         (with-handlers ([λC:error? (λ (e) (Σ! κs σ (inspect-blame κs)))])
+           (Σv κs σ (native-apply f vs)))])
+      (Σ! κs σ (inspect-blame κs))))
 
 (define (inherit-blame κs)
   (if (empty? κs)
@@ -61,7 +62,7 @@
           [else
            (inherit-blame κs)]))))
 
-(define (assign-blame κs)
+(define (inspect-blame κs)
   (if (empty? κs)
       (λC:error)
       (match-let ([(cons κ κs) κs])
@@ -73,7 +74,14 @@
           [(chap-pos-ults-κ? κ)
            (λC:blame+ (chap-app-κ-L κ))]
           [else
-           (assign-blame κs)]))))
+           (inspect-blame κs)]))))
+
+(define (call/single-value κs σ v e f)
+  (match v
+    [(single-value v)
+     (f v)]
+    [(multiple-values vs)
+     (Σ! κs σ e)]))
 
 (define step
   (match-lambda
@@ -96,6 +104,8 @@
        [(letrec-e _ xs r e0 e1)
         (let ([ρ (pre-bind ρ xs r)])
           (Σe (cons (letrec-κ xs r ρ e1) κs) σ ρ e0))]
+       [(and-e _ e0 e1)
+        (Σe (cons (and-κ ρ e1) κs) σ ρ e0)]
        [(or-e _ e0 e1)
         (Σe (cons (or-κ ρ e1) κs) σ ρ e0)]
        [(prim-e _ id)
@@ -120,14 +130,17 @@
             [(cons e es)
              (Σe (cons (app-rands-κ op empty ρ es) κs) σ ρ e)]))]
        [(chap-f-κ L ρ neg pos)
-        (let ([f (single-value! v)])
-          (Σe (cons (chap-neg-κ L f ρ pos) κs) σ ρ neg))]
+        (call/single-value
+         κs σ v (λC:blame L)
+         (λ (f) (Σe (cons (chap-neg-κ L f ρ pos) κs) σ ρ neg)))]
        [(chap-neg-κ L f ρ pos)
-        (let ([neg (single-value! v)])
-          (Σe (cons (chap-pos-κ L f neg) κs) σ ρ pos))]
+        (call/single-value
+         κs σ v (λC:blame L)
+         (λ (neg) (Σe (cons (chap-pos-κ L f neg) κs) σ ρ pos)))]
        [(chap-pos-κ L f neg)
-        (let ([pos (single-value! v)])
-          (Σv κs σ (single-value (chaperone L (inherit-blame κs) f neg pos))))]
+        (call/single-value
+         κs σ v (λC:blame L)
+         (λ (pos) (Σv κs σ (single-value (chaperone L f neg pos)))))]
        [(chap-neg-ults-κ L f pos vs)
         (let ([vs* (value->list v)])
           (if (= (length vs)
@@ -153,19 +166,29 @@
        [(handle-κ ρ e)
         (Σv κs σ v)]
        [(if-κ ρ e0 e1)
-        (let ([v (single-value! v)])
-          (Σe κs σ ρ (if v e0 e1)))]
+        (call/single-value
+         κs σ v (λC:error)
+         (λ (v) (Σe κs σ ρ (if v e0 e1))))]
        [(let-κ xs r ρ e)
         (let-values ([(σ ρ) (bind σ ρ xs r (value->list v))])
           (Σe κs σ ρ e))]
        [(letrec-κ xs r ρ e)
         (let ([σ (rec-bind σ ρ xs r (value->list v))])
           (Σe κs σ ρ e))]
+       [(and-κ ρ e)
+        (call/single-value
+         κs σ v (λC:error)
+         (λ (v)
+           (if v
+               (Σe κs σ ρ e)
+               (Σv κs σ (single-value v)))))]
        [(or-κ ρ e)
-        (let ([v (single-value! v)])
-          (if v
-              (Σv κs σ (single-value v))
-              (Σe κs σ ρ e)))])]))
+        (call/single-value
+         κs σ v (λC:error)
+         (λ (v)
+           (if v
+               (Σv κs σ (single-value v))
+               (Σe κs σ ρ e))))])]))
 
 
 (define (eval e)

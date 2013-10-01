@@ -13,7 +13,7 @@
   (let ([i 0])
     (λ ()
       (begin0
-        (string->symbol (format "l~a" i))
+        (string->symbol (format "L~a" i))
         (set! i (add1 i))))))
 
 (define (pspec? ps)

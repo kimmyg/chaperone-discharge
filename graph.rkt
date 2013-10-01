@@ -2,15 +2,17 @@
 (require racket/match
          racket/set)
 
-(provide (struct-out -L->)
+(provide (struct-out +-L->)
+         (struct-out +-L)
          (struct-out L->)
-         (struct-out -->)
+         (struct-out +->)
          select
          vizualize)
 
-(struct -L-> (+ L >) #:transparent)
+(struct +-L-> (+ L >) #:transparent)
+(struct +-L (+ L) #:transparent)
 (struct L-> (L >) #:transparent)
-(struct --> (+ >) #:transparent)
+(struct +-> (+ >) #:transparent)
 
 (define (select g . a+vs)
   (match a+vs
@@ -33,11 +35,11 @@
   (set-for-each
    g
    (match-lambda
-     [(-L-> ς Γα ς′)
+     [(+-L-> ς αγ ς′)
       (printf "\"~a\" -> \"~a\" [label=\"~a\"];\n"
               (node-render ς)
               (node-render ς′)
-              (edge-render Γα))]))
+              (edge-render αγ))]))
   (displayln "}"))
 
 (module+ main
@@ -128,13 +130,13 @@
        (let* ([s (ς/ref)]
               [e (read-ΔΓ)]
               [t (read-ς)])
-         (set! g (set-add g (-L-> s e t)))
+         (set! g (set-add g (+-L-> s e t)))
          (ςs t))]
       ['add
        (let* ([s (ς/ref)]
               [e (read-ΔΓ)]
               [t (ς/ref)])
-         (set! g (set-add g (-L-> s e t))))])
+         (set! g (set-add g (+-L-> s e t))))])
     (with-output-to-file (format "s~a.gv" i)
       (λ () (vizualize g display-ς display-ΔΓ))
       #:exists 'replace)

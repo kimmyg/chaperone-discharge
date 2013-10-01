@@ -10,15 +10,15 @@
                          (* (- 0 n) (fac (- n 1)))))])
      (let ([(fac-rec) (chaperone-operator fac
                                           (λ (n)
-                                            (if (or (not (integer? n))
-                                                    (< n 0))
-                                                (raise)
-                                                n))
+                                            (if (and (integer? n)
+                                                     (not (< n 0)))
+                                                n
+                                                (raise)))
                                           (λ (n)
-                                            (if (or (not (integer? n))
-                                                    (< n 1))
-                                                (raise)
-                                                n)))])
+                                            (if (and (integer? n)
+                                                     (not (< n 1)))
+                                                n
+                                                (raise))))])
        (fac-rec 7))))
 
 (define p1
@@ -143,7 +143,7 @@
 
 (require racket/match)
 
-(match (eval (parse p5))
+(match (eval (parse p4))
   [(cons σ v)
    v]
   [e
