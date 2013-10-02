@@ -25,7 +25,7 @@
 (struct Σ (κs σ) #:transparent)
 (struct Σe Σ (ρ e) #:transparent)
 (struct Σv Σ (v) #:transparent)
-(struct Σc Σ (v vs) #:transparent)
+(struct Σa Σ (v vs) #:transparent)
 (struct Σ! Σ (e) #:transparent) ; contains blame
 
 (define (inspect-blame κs)
@@ -62,7 +62,7 @@
        [(app-e _ ae aes)
         (let ([f (A σ ρ ae)]
               [vs (map (λ (ae) (A σ ρ ae)) aes)])
-          (Σc κs σ f vs))]
+          (Σa κs σ f vs))]
        [(bool-e _ p)
         (Σv κs σ (single-value p))]
        
@@ -108,7 +108,7 @@
             [(= (length vs)
                 (length vs*))
              (if (andmap chaperone-of? vs* vs)
-                 (Σc κs σ f vs*)
+                 (Σa κs σ f vs*)
                  (Σ! κs σ (λC:blame1 L)))]
             [(= (add1 (length vs))
                 (length vs*))
@@ -116,7 +116,7 @@
                    [vs* (rest vs*)])
                (if (operator? v*)
                    (if (andmap chaperone-of? vs* vs)
-                       (Σc (cons (chap-f-ults-κ L v*) κs) σ f vs*)
+                       (Σa (cons (chap-f-ults-κ L v*) κs) σ f vs*)
                        (λC:blame1 L))
                    (Σ! κs σ (λC:blame3 L))))]
             [else
@@ -126,7 +126,7 @@
         (let ([vs (value->list v)])
           (if (arity-includes? (operator-arity pos)
                                (length vs))
-              (Σc (cons (chap-pos-ults-κ L vs) κs) σ pos vs)
+              (Σa (cons (chap-pos-ults-κ L vs) κs) σ pos vs)
               (Σ! κs σ (λC:blame5 L))))]
        [(chap-pos-ults-κ L vs)
         (let ([vs* (value->list v)])
@@ -142,11 +142,11 @@
        [(letrec-κ xs ρ e)
         (let ([σ (rec-bind σ ρ xs (value->list v))])
           (Σe κs σ ρ e))])]
-    [(Σc κs σ op vs)
+    [(Σa κs σ op vs)
      (if (arity-includes? (operator-arity op) (length vs))
       (match op
         [(chaperone L f -)
-         (Σc (cons (chap-neg-ults-κ L f vs) κs) σ - vs)]
+         (Σa (cons (chap-neg-ults-κ L f vs) κs) σ - vs)]
         [(closure xs ρ e)
          (let-values ([(σ ρ) (bind σ ρ xs vs)])
            (Σe κs σ ρ e))]
