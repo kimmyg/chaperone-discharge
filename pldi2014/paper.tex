@@ -596,6 +596,10 @@ The second subform of a \scheme{chaperone-operator} or \scheme{impersonate-opera
 \setlength{\tabcolsep}{1pt}
 \begin{figure}
 \label{fig:syntax}
+%\begin{tabular}{rcl}
+%c & = & $\appe{e}{e\,\dots}$ & application\\
+%\end{tabular}
+
 \begin{align*}
 c &= \appe{\ae}{\ae\,\dots} && \text{application}\\
 e &= \lete{x\,\dots}{c}{e} && \text{let}\\
@@ -1044,16 +1048,10 @@ The nature of the programming cycle indicates that there may be some chaperones 
 
 \subsection{Intuition behind sound discharge}
 
-The conditions necessary for the sound discharge of a chaperone installment site are more easily constructed by considering the conditions sufficient for a chaperone installment site to be meaningful.
-If we can enumerate a complete set of these conditions in the sense that any meaningful chaperone installment site must meet at least one of the conditions, we obtain the soundness conditions by complement.
+The conditions necessary for the sound discharge of a chaperone are more easily constructed by considering the conditions sufficient for a chaperone to be meaningful.
+If we can enumerate a complete set of these conditions in the sense that any meaningful chaperone must meet at least one of the conditions, we obtain the soundness conditions by complement.
 
-A chaperone installment site \emph{cannot} be discharged if
-\begin{enumerate}
-\item the evaluation of its guard expression causes an error to be raised,
-\item the evaluation of its guard expression diverges, or
-\item the negative guard does not accept the same number of arguments as the procedure to be chaperoned
-\end{enumerate}
-or if, for any of the chaperones installed there,
+A chaperone \emph{cannot} be discharged if
 \begin{enumerate}
 \item the negative guard causes an error to be raised,
 \item the negative guard diverges,
@@ -1067,17 +1065,26 @@ or if, for any of the chaperones installed there,
 \item the results of the positive guard are not, at most, chaperones of the arguments.
 \end{enumerate}
 
-If neither a chaperone nor its installation will raise an error or diverge for any possible execution of the program, it is a candidate for \emph{discharge}, or the replacement of its installation site with its first argument.
-It is only a candidate because it may install a chaperone in the course of its monitoring and that chaperone may not be well-behaved.
+For a given program execution, if neither a chaperone nor its installation raises an error or diverges, it is a candidate for \emph{discharge}, or the [omission/removal] of its installation.
+It is only a candidate because its application may cause a chaperone to be installed and that chaperone may not be well-behaved.
 In this case, discharging the original chaperone would prevent a meaningful chaperone from being created which would make discharge unsound.
-Then, intuitively, a chaperone can be discharged if it will not raise an error or diverge for any possible execution \emph{and} any chaperones it installs can be discharged.
+Then, intuitively, a chaperone can be discharged if it will not raise an error or diverge  \emph{and} any chaperones it installs can be discharged.
 
+The discharge of a chaperone amounts to replacing its installation site with that site's first argument
 However, multiple chaperone installations may occur at a given chaperone installation site during program execution, so we cannot, in all circumstances, selectively prevent the creation of a single chaperone.
 Instead, we consider the discharge of installment sites themselves.
-The conditions to discharge a given site are stronger than that of a chaperone installed at that site: instead of demonstrating that this single chaperone satisfies a property, we must demonstrate that every chaperone created at that site satisfies that property \emph{and} that chaperone installation at the site is always successful.
-This constraint at first appears fatal.
+The conditions to discharge a given site are stronger than that of a chaperone installed at that site: instead of demonstrating that a single chaperone satisfies a property, we must demonstrate that every chaperone created at that site satisfies that property \emph{and} that there is no chaperone installation at that site for which
+\begin{enumerate}
+\item the evaluation of its guard expression causes an error to be raised,
+\item the evaluation of its guard expression diverges, or
+\item the negative guard does not accept the same number of arguments as the procedure to be chaperoned.
+\end{enumerate}
+
+When put in these terms, it is clear that a chaperone installment site can be discharged only if it meets these conditions for every possible execution.
+These conditions seem onerous.
 Indeed, in Racket, users typically access chaperone installation through a library wrapper so all chaperones in the entire program share the same installation site.
-This, in turn, means that a given chaperone can be safely discharged only if \emph{all} chaperones installed by any execution of the program can be safely discharged.
+This, in turn, means that a given chaperone can be safely discharged only if \emph{all} chaperones in all executions of the program can be safely discharged.
+%In other words, the program must be correct up to the encoded specification.
 Fortunately, with access to the whole program, we may inline definitions which allows us to multiply the number of installment sites in the program.
 
 %In such cases, we may not be able to discharge only a particular chaperone.
@@ -1086,20 +1093,31 @@ Fortunately, with access to the whole program, we may inline definitions which a
 \subsection{Intuition behind demotion}
 
 Much of the run-time overhead of chaperones is shared by impersonators.
-Nevertheless, the enforcement of certain invariants specific to chaperones is somewhat costly, specifically, the enforcement that chaperone guards at most install chaperones on their arguments.
-The conditions to \emph{demote} the set of chaperones installed at a particular site to impersonators (by replacing the \scheme{chaperone-operator} installment site with \scheme{impersonate-operator}) are immediately weaker than to discharge the site entirely: we need to demonstrate only that the chaperone guards do not arbitrarily modify their arguments for it to be a candidate for demotion.
-If one of this site's chaperones is installed on the argument of a chaperone guard, demoting this site to merely install an impersonator will make an otherwise well-behaved chaperone not so.
-This observation provides us with the intuition behind sound site demotion: a chaperone installment may be demoted if neither of its guards do more than install chaperones on their arguments for all program executions and the chaperone which installs it, if any, can and is demoted. 
-We can lift the conditions to chaperone installment sites so that a chaperone installment site can be demoted if all chaperones installed there in any program execution can be demoted and the installment site of any possible installing chaperone can and is demoted.
+Nevertheless, the enforcement of certain invariants specific to chaperones is somewhat costly --- specifically, the enforcement that chaperone guards at most install chaperones on their arguments.
+The conditions to \emph{demote} the set of chaperones installed at a particular site to impersonators (by replacing the \scheme{chaperone-operator} installment site with \scheme{impersonate-operator}) are immediately weaker than to discharge the site entirely: we need to demonstrate only that the chaperone guards do not arbitrarily modify their arguments (conditions 5 and 10 above) for it to be a candidate for demotion.
+If one of this site's chaperones is installed on the argument of a chaperone guard, demoting this site to install merely an impersonator will make an otherwise well-behaved chaperone not so.
+This observation provides us with the intuition behind sound site demotion: a chaperone may be demoted if neither of its guards do more than install chaperones on their arguments for all program executions and the chaperone which guard installed it, if any, can be and is demoted. 
+We once again lift the conditions to chaperone installment sites so that a chaperone installment site can be demoted if all chaperones installed there in any program execution can be demoted and the installment sites of any installing chaperones can be and are demoted.
 
 \subsection{More formal notion of discharge and demotion}
 
 Formally, the discharge or demotion of a chaperone installment site is defined in terms of simple program transformers.
 
-A
+\begin{definition}
+A \emph{discharge transformation} $D_\ell : P\rightarrow P$ is a program transformation which replaces a chaperone-installment site labelled $\ell$ with its first subform.
+\end{definition}
 
-We will now make the notion of safe chaperone discharge and demotion more formal.
-We begin with some definitions.
+\begin{definition}
+A \emph{demotion transformation} $E_\ell : P\rightarrow P$ is a program transformation which replaces a chaperone-installment site labelled $\ell$ with an impersonator-installment site with the same subforms.
+\end{definition}
+
+We assume that each chaperone-installment site is labelled uniquely within a program.
+Then, as formulated, these transformations can affect only one site.
+We will see that transformations which meet a set of soundness conditions can be composed and reordered.
+%they unambiguously define a more powerful transformation
+
+%We will now make the notion of safe chaperone discharge and demotion more formal.
+%We begin with some definitions.
 
 %We will consider all the conditions jointly necessary for sound discharge, but it may be helpful to instead consider all the conditions which are disjointly sufficient to prevent discharge.
 %If we can enumerate a complete set of conditions under which discharge is unsound, then we can take the complement (and conjunction) to have a set under which discharge is sound.
@@ -1148,7 +1166,6 @@ The sound discharge or demotion of a chaperone-installment site cannot change th
 In terms of \chapcalc, a discharge should not be judged sound if an execution that once resulted in an error (because of a misbehaving chaperone, say) results in a value or vice versa.
 Additionally, a divergent program should not converge after demotion.
 
-Let $D_\ell : P\rightarrow P$ be a program transformation which replaces a chaperone-installment site labelled $\ell$ with its first subform.
 
 \begin{definition}[Chaperone-Installment Site Discharge Soundness]
 We say a discharge transformation $D_\ell$ is sound for a program $p$ when it holds that
@@ -1238,6 +1255,10 @@ A good and nice chaperone installment site can soundly be replaced by its first 
 %Because the result wrapper is produced at each invocation, it may depend on 
 
 Strickland presents a chaperone erasure theorem which states that if a program with chaperones evaluates to a value, the same program with chaperones erased--that is, with all chaperone installment sites replaced with the first argument--will evaluate to the same value. The purpose of this theorem seems to be to make a statement about the nature of chaperones--that, in a well-behaved program, they do not change meaning. Our theorems give the conditions of when a given chaperone installment site does not change the meaning of the program.
+
+IPDCFA provides us with the chaperones which may be meaningful, but it does not provide us with which chaperone guards may diverge, either by evaluation of the guard itself or application of it.
+To a first approximation, we can conservatively say that any non-atomic expression for the guard potentially diverges and cannot be safely removed from the program.
+This strategy covers most of the cases in practice, since it is relatively rare to have a complicated expression in guard position---the more complicated the expression, the bigger the onus of justifying that the 
 
 %This language is sufficient to express two theorems.
 
