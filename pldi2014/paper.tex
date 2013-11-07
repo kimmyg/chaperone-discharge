@@ -39,7 +39,7 @@
 \titlebanner{banner above paper title}        % These are ignored unless
 \preprintfooter{short description of paper}   % 'preprint' option specified.
 
-\title{Static Discharge and Demotion of Higher-Order Contracts}
+\title{Static Discharge and Demotion of Low-Level, Higher-Order Contracts}
 %\subtitle{Subtitle Text, if any}
 
 \authorinfo{Kimball Germane\and Matthew Might}
@@ -95,6 +95,8 @@ Utilizing a combination of introspective pushdown control-flow analysis and term
 % chaperone vs. chaperoned operator
 % 
 
+\setspecialsymbol{->}{$\rightarrow$}
+
 \setspecialsymbol{LAMBDA0}{$\lambda_0$}
 \setspecialsymbol{LAMBDA1}{$\lambda_1$}
 \setspecialsymbol{LAMBDA2}{$\lambda_2$}
@@ -123,55 +125,58 @@ Higher-order behavioral contracts can take inordinate time and space to enforce.
 
 Consider, for instance, the program
 \begin{schemedisplay}
-(define/contract (fac n a)
+(define/contract (fact n a)
   (nonnegative-integer/c positive-integer/c . -> . positive-integer/c)
   (if (= n 0)
       a
-      (fac (- n 1) (* n a))))
+      (fact (- n 1) (* n a))))
 \end{schemedisplay}
 which attaches dynamic domain and range contracts to the tail-recursive factorial.
 This contracted procedure behaves as if it were written
 \begin{schemedisplay}
-(define (fac n a)
+(define (fact n a)
   (positive-integer/c
    ((LAMBDA (n a)
       (if (= n 0)
           a
-          (fac (- n 1) (* n a))))
+          (fact (- n 1) (* n a))))
     (nonnegative-integer/c n)
     (positive-integer/c a))))
 \end{schemedisplay}
 where \scheme{positive-integer/c} and \scheme{nonnegative-integer/c} are procedures which raise an error if their argument does not belong to the domain reflected by the procedure's name.
 Written in this way, it is apparent that \scheme{fac} is not tail-recursive.
-Instead, the context grows with every recursive call so that \scheme{(fac 6 1)} reduces as
+Instead, the context grows with every recursive call so that \scheme{(fact 6 1)} reduces as
 \begin{schemedisplay}
-(fac 6 1)
-(positive-integer/c (fac 5 6))
-(positive-integer/c (positive-integer? (fac 4 30)))
+(fact 6 1)
+(positive-integer/c (fact 5 6))
+(positive-integer/c (positive-integer/c (fact 4 30)))
 ...
-(positive-integer/c ... (positive-integer/c (fac 0 720)))
+(positive-integer/c ... (positive-integer/c (fact 0 720)))
+(positive-integer/c ... (positive-integer/c 720))
 \end{schemedisplay}
-whence the result will be validated six times---and \scheme{n} times for \scheme{(fac n 1)}.
+whence the result will be validated six times---and \scheme{n} times for \scheme{(fact n 1)}.
 The attachment of these contracts has transformed a constant-space algorithm into a linear-space one and, while the time complexity hasn't suffered asymptotically, the accumulated checks represent a real (and, in this case, unnecessary) cost.
 Thus, a simple contract ascription can upset our performance expectations for even simple procedures.
 
 As contract specifications become more elaborate, they become more susceptible to error.
-In contract systems, such as Racket's~\cite{plt-tr1}, which allow arbitrary predicate procedures written in Racket itself to serve as specifications, this error is effected by the programmer.
+In contract systems, such as Racket's~\cite{plt-tr1}, which allow arbitrary predicate procedures written in the source language itself to serve as specifications, this error is effected by the programmer.
 It is only natural, then, to contract these procedures as well, an act which aides error diagnosis but compounds the run-time cost of contracts.
 In these systems, execution time of the program proper can be dwarfed by that of the enforcement of its specification (in one case accounting for 96\% of total execution time) \cite{strickland2012chaperones}.
 
-The contract cost problem has been studied extensively.
-Herman et al.~\cite{herman2010space} observed the potential accumulation of casts in the blame calculus---similar in principle to the accumulation of guards in our contracted \scheme{fac}---and applied the coercion calculus of Henglein~\cite{henglein1994dynamic} to compact them.
-Siek and Wadler~\cite{siek2010threesomes} consider the same problem and apply \emph{threesomes}.
+The moderation of these costs has been studied extensively.
+Herman et al.~\cite{herman2010space} observed the potential accumulation of casts in the blame calculus---similar in principle to the accumulation of guards by our contracted \scheme{fact} procedure---and applied the coercion calculus of Henglein~\cite{henglein1994dynamic} to compact them.
+Siek and Wadler~\cite{siek2010threesomes} consider the same problem and apply their own solution of \emph{threesomes}.
 Siek et al.~\cite{siek2006gradual} explicate type systems which allow \emph{gradual typing} in which they provide a low-cost path from dynamically- to statically-checked invariants.
 Flanagan and Knowles~\cite{flanagan2006hybrid} introduce \emph{hybrid type checking} in which static analysis is used to establish contract compliance statically where possible and insert dynamic checks where not.
-Using this approach, a disciplined programmer enjoys the early safety guarantees and performance characteristics of statically-verified code or suffers the cost of belated error detection of dynamically-checked specifications.
+%Using this final approach, a disciplined programmer enjoys the early safety guarantees and performance characteristics of statically-verified code or suffers the cost of belated error detection of dynamically-checked specifications.
 
-Modular development can impede these analyses because the greatest amount of knowledge a module can have about its imports \emph{is} their behavioral contract.\footnote{Indeed, it can be less than this, as when the behavioral specification is not codified entirely within the program.}
+Unfortunately, modular development can impede these analyses because the greatest amount of knowledge a module can have about its imports \emph{is} their behavioral contract.\footnote{Indeed, it can be less than this, as when the behavioral specification is not codified entirely within the program.}
 For example, recognizing that contracts constitute total formal knowledge, Tobin-Hochstadt and Van Horn \cite{tobin2012higher} conduct an intra-module analysis which identifies extra-module references with opaque values that satisfy their contract.
 % also, contracts are attached to values that flow across module boundaries.
 Nevertheless, static analyses typically perform best when given whole programs.
 For instance, the whole-program ML compiler MLton \cite{weeks2006whole} is able to perform thorough inter-procedural and inter-modular analysis and effect significant program optimizations.
+We similarly expect the establishment of certain properties to become more accessible as code knowledge increases.
+%We expect the emergence of the possibility of more properties being proved about the code as more knowledge about it becomes available.
 
 We turn our attention to whole-program analysis of Racket \cite{plt-tr1}, a higher-order, dynamically-typed language, for the purpose of reducing the run-time burden of contracts.
 Racket programs are organized into modules which consist of import and export declarations, definitions, and expressions.
@@ -181,105 +186,10 @@ At this level, contracts are manifest in terms of \emph{interposition} primitive
 
 Recent advances in higher-order program analysis \cite{earl2012introspective} provide perfectly precise return flow and allow the form of the stack to be approximated at each control point in the program.
 The original purpose of this approximation was to provide an abstract garbage collector a conservative set of live frames.
-We repurpose this capability to analyze a notion of dependence similar to that of Might and Prabhu~\cite{might2009interprocedural} allowing us to judge the safe removal of dynamic contracts \emph{even when the creation of other contracts depends on them}.
-The expressiveness of Racket's contract language admits dynamic checks which diverge, so we must integrate a termination analysis based on Sereni's~\cite{sereni2007termination} that informs the discharge of dependently-created contracts.
+We repurpose this capability to analyze a notion of dependence similar to that of Might and Prabhu~\cite{might2009interprocedural} allowing us to judge the safe removal of dynamic contracts \emph{even when the installation of other contracts depends on them}.
+The expressiveness of Racket's contract language admits dynamic checks which diverge, so we must integrate a termination analysis based on Sereni's~\cite{sereni2007termination} that informs the discharge of dependently-installed contracts.
 
-, which disregards some latent structure provided by the analysis.
-Specifically, the pushdown system characterization of an abstract interpretation immediately admits a finite description of an unbounded stack as a regular expression.
-We use this structure to approximate blame on a misbehaving program.
-Using , coupled with a termination analysis based on Sereni's~\cite{sereni2007termination}, we devise a blame analysis which allows us to soundly and statically discharge contracts.
-
-\section{Next}
-
-Not changing complexity, the time factor is less pernicious, but it is hard not to think of the waste effected by the application of a sequence of idempotent operators.
-
-Now the programmer wants to define his own contract predicates \scheme{even?} and \scheme{odd?}. Aware of the cost of contracts on tail-recursive functions, he opts against their use.
-\begin{schemedisplay}
-(define (even? n)
-  (if (= n 0)
-      #t
-      (odd? (- n 1))))
-      
-(define (odd? n)
-  (if (= n 1)
-      #t
-      (even? (- n 1))))
-\end{schemedisplay}
-for use in the definition
-\begin{schemedisplay}
-(define/contract (partial-succ n)
-  (odd? . -> . even?)
-  (+ n 1))
-\end{schemedisplay}
-which calculates the successor only for odd numbers.
-
-What is the result of the call \scheme{(partial-succ 0)}?
-The programmer hopes a contract violation will be detected with blame assigned to the caller.
-Instead, his program never halts.
-
-Now suppose the programmer recruits \scheme{odd?} and \scheme{even?} as contract predicates but, as happens with , fails to implement odd? correctly inst
-
-
-%It takes time to determine compliance of first-order values as first-order contracts can be arbitrary predicates.
-%Additionally, functions may ascribe contracts to their higher-order arguments which themselves do similarly, even recursively.
-
-%There isn't much a calculus can do to solve the time issue, especially in the face of dependent contracts.
-
-%Because contract compliance of higher-order values cannot be determined in general at ascription time, compliance checks must be attached to values to be performed later.
-%These attachments may accumulate, even changing the asymptotic space complexity of the program \cite{herman2010space} unless otherwise handled (again see \cite{herman2010space} or, for example, \cite{siek2010threesomes}).
-
-%This space issue is well-known and a few different approaches have been taken to deal with it:
-%Herman's coercion calculus, Wadler and Sieks' threesome calculus, the space-efficient contracts author
-%These do well to soundly preserve the asymptotic space complexity of the program and perhaps the time as well.
-
-
-
-
-%The motivation for this was to provide an abstract garbage collector a set of live frames, disregarding any stack structure latent in the control flow graph.
-
-%This description alone is enough to allow us to reason statically about features based on stack inspection, such as security checks [cite] and dynamic binding [cite].
-%We will use it to approximate blame on a misbehaving program.
-%After considering all possible sources of such blame, a straightforward analysis allows us to alter contract sites, shifting some of the dynamic burden to the static.
-
-% thus, in order to soundly discharge contracts from the original program, we must soundly discharge impersonators and chaperones.
-%The implementation of familiar language features is sometimes accomplished through alien constructs.
-% (Because the feature must be situated particularly within the already existing features of the language.)
-%Contracts are a common feature of dynamically-typed languages.
-%Higher-order contracts \cite{findler2002contracts} increase the domain of contracts to higher-order values.
-%Of course, codomain compliance of a higher-order contract cannot be decided at attachment time.
-%Instead, contracts are decomposed and positioned to intercept the arguments and results of application--the earliest possible time that contract compliance can be determined.
-%This \emph{de facto} wrapping of deferred contract checks imposes space and time overhead.
-%Wadler and his cronies and Herman and his cronies \cite{wadler2009well,herman2010space} show how the accumulation of wrappers can grow unbounded and offer various solutions to ameliorate this.
-%Determining contract compliance can make up a significant portion of reduction.
-
-%Higher-order contracts \cite{findler2002contracts} are now familiar constructs of languages but their implementation in Racket, which must cope with other language features--perhaps incidentally, is in terms of value wrappers.
-% \emph{impersonators} and \emph{chaperones}.
-%In Racket, data contracts are implemented at the bytecode level using interposition primitives--that is, values are wrapped and these wrappers intercept arguments and results.
-%Because functions are data in a higher-order language, special care has been given to enforcing safe and sound function contracts.
-%Of course, codomain contract compliance cannot be decided.
-%In consequence, codomain contract checks are deferred until the function actually delivers a value.
-
-%Nevertheless, analysis tools have access to more of certain kinds of information after compilation and so have the potential to prove more and different properties about programs.
-%Specifically, analysis tools for Racket have access to the whole program after module compilation through a \emph{demodularization} process.
-
-%Racket program lifecycle--the tipping of various types of information
-
-% a static analysis defines a class of program transformations
-% if the analysis is sound, the transformation is meaning-preserving
-% are these two preceding statements true?
-
-%This goal can be sought at each of the various stages of the Racket program lifecycle.
-%Initially, programs are organized into modules, and dynamic behavior can be gleaned from contract declarations at module boundaries.\cite{tobin2012higher}
-%Each module is compiled in isolation to bytecode; the bytecode compiler performs optimizations which rely on at most basic flow analysis are performed (constant-folding, 
-%``The bytecode compiler applies all standard optimizations, such as constant propagation, constant folding, inlining, and dead-code elimination.''
-%The journey to this stage discards high-level information and doesn't acquire much new information, so analysis here is probably fruitless.
-
-%Racket modules are compiled to bytecode. This
-
-%implementation of contracts within racket using interposition
-
-%talk about blame and the method Racket uses to assign blame--the compilation process, etc.
-
+We proceed as follows:
 We discuss interposition and its relationship to behavioral contracts in more depth in Section 2.
 We introduce the syntax and semantics of \chapcalc, a core calculus with facilities for interposing higher-order values, in Section 3.
 We present two theorems which establish the conditions for the safe removal or weakening of interposition in Section 4.
@@ -287,6 +197,7 @@ We present a static analysis which can judge when these conditions hold in Secti
 We discuss the influence of parameters of the analysis on precision and performance in Section 6.
 We discuss some Racket language features which require more care to integrate with the present analysis in Section 7.
 We conclude by discussing the future application and direction of this work in Section 8.
+
 
 \section{Interposition}
 
@@ -360,15 +271,19 @@ In general, allowing the positive guard to be lexically embedded in the negative
 
 \subsection{Run-time cost of impersonators and chaperones}
 
+\subsection{Mapping from contracts to impersonators}
+
+
+
 We can put the phases of creation, projection, and application of the contract lifecycle in correspondence with components of the impersonating lifecycle.
 
 The contracted tail-recursive factorial procedure expressed as a chaperone is
 \begin{schemedisplay}
-(define fac (chaperone-procedure
+(define fact (chaperone-procedure
              (LAMBDA (n a)
                (if (= n 0)
                    a
-                   (fac (- n 1) (* n a))))
+                   (fact (- n 1) (* n a))))
              (LAMBDA (n a)
                (if (and (nonnegative-integer? a)
                         (positive-integer? a))
@@ -455,9 +370,8 @@ Every term is annotated with a unique label $\ell$ to keep otherwise identical t
 %c & = & $\appe{e}{e\,\dots}$ & application\\
 %\end{tabular}
 
-\newcommand{\stxclass}[4]{$#1\in\mathbf{#2}$ &=& #3 & #4}
+\newcommand{\stxclass}[4]{$#1\in\mathbf{#2}$ &::=& #3 & #4}
 \newcommand{\stxclasscont}[2]{&$|$& #1 & #2}
-%\newcommand{\fstxclass}[3]{$#1$ &=& #2
 
 %\begin{align*}
 % \expr \in \syn{Exp} &\produces \letiform{\vv}{\call}{\expr} && \text{[non-tail call]}
@@ -476,51 +390,21 @@ Every term is annotated with a unique label $\ell$ to keep otherwise identical t
 % \text.
 %\end{align*}
 
-\begin{tabular}{ r | r | l | l }
+\begin{tabular}{ r r l l }
 \stxclass{c}{Call}{\scheme|(ae ae ...)|$^\ell$}{application}\\
 \stxclass{e}{Exp}{\scheme|(let ((x ...) c) e)|}{let}\\
 \stxclasscont{\scheme|(if ae e e)|}{if}\\
 \stxclasscont{\scheme|ae|}{}\\
-\stxclass{ae}{AExp}{$\mathit{lam}$ $|$ x $|$ p $|$ i $|$ b}{atomic expressions}
-%\stxclass{\mathit{lam}}{Lam}{\scheme|(LAMBDA (x ...) e)|}{lambda terms}
-%\stxclass{p}{Prim}{\scheme|impersonate-operator| $|$ \scheme|<| $|$ \scheme|>| $|$ %\scheme|=| $|$ \scheme|+| $|$ \scheme|-|}{}
+\stxclass{\mathit{ae}}{AExp}{$\mathit{lam}$ $|$ $p$ $|$ $x$ $|$ $i$ $|$ $b$}{atomic expressions}\\
+\stxclass{\mathit{lam}}{Lam}{\scheme|(LAMBDA (x ...) e)|}{lambda terms}\\
+\stxclass{p}{Prim}{\scheme|impersonate-operator| $|$ \scheme|<| $|$ \scheme|>| $|$ \scheme|=| $|$ \scheme|+| $|$ \scheme|-|}{primitives}\\
+\stxclasscont{\scheme|chaperone-operator| $|$ \scheme|values| $|$ \scheme|raise|}{}\\
+\stxclasscont{\scheme|not| $|$ \scheme|operator?| $|$ \scheme|integer?| $|$ \scheme|boolean?|}{}\\
+\stxclass{x}{Var}{an infinite set of variables}{}\\
+\stxclass{i}{Int}{$0\,|\,1\,|\,-1\,|\,2\,|\,-2\,|\,\dots$}{integers}\\
+\stxclass{b}{Bool}{$\#t\,|\,\#f$}{booleans}
 \end{tabular}
 
-\begin{verbatim}
- c\in Call &= (ae ae ...)^l               &\text{application}\\
- e\in Exp  &= (let ((x ...) c) e)         &\text{let}\\
-           &| (if ae e e)                 if\\
-           &| ae
-ae\in AExp &=  lam | x | p | i | b
-lam\in Lam &= (lambda (x ...) e)
- p &= impersonate-operator | < | > | = | + | -
-   &| chaperone-operator | not | values | raise
-   &| integer? | boolean? | operator?
- x &= variables
- i &= 0 | 1 | -1 | 2 | -2 | ...
- b &= \#t | \#f
-\end{verbatim}
-
-
-%\begin{align*}
-%c &= \appe{\ae}{\ae\,\dots} && \text{application}\\
-%e &= \lete{x\,\dots}{c}{e} && \text{let}\\
-%  &|  \letrece{x\,\dots}{c}{e} && \text{letrec}\\
-%  &|  \ife{\ae}{e}{e} && \text{if}\\
-%  &   \chae{\ae}{e} && \text{chaperone-operator}\\
-%  &   \impe{\ae}{e} && \text{impersonate-operator}\\
-%\ae &= \lame{x\,\dots}{e}\,|\,x\,|\,p\,|\,i\,|\,b && tsh\\
-%p &= values | = | < | > | + | - | not | integer? | boolean? | operator? | raise && \\
-%x &= ha & \\
-%i &= 0|1|-1|2|-2|\dots\\
-%b &= \true\,|\,\false\\
-%\end{align*}
-
-%\begin{tabular}{rrl}
-%$c$ & = & $\appe{\ae}{\ae\,\dots}$\\
-%$e$ & = & $\lete{x\,\dots}{c}{e}$\\
-%g & h & i
-%\end{tabular}
 \caption{The syntax of \chapcalc.}
 \end{figure}
 
@@ -528,19 +412,6 @@ A program is a term in the grammar with no free variables and in which all ident
 
 
 
-
-% raise integer? boolean? not operator? + - * = < > values
-% need primitives to allow contracts to deal higher orderly
-% ae := (lambda s e) x primitive integer boolean
-
-% (ae ae ...)
-% (app-values ae ae)
-% (chaperone-operator ae ae ae)
-% (impersonate-operator ae ae ae)
-% (let ([s call]) e)
-% (letrec ([s call]) e) IS IT POSSIBLE TO LIFT AN EXPRESSION OUT THAT SHOULDN'T BE?
-% (if ae e e)
-% (lambda s e)
 
 % results are:
 % values: closures, chaperones, impersonators, primitives, integers, booleans
@@ -580,18 +451,18 @@ A program is a term in the grammar with no free variables and in which all ident
 
 \newcommand{\dynbla}[1]{\mathrm{dynamic\mhyphen blame}(#1)}
 
-\newcommand{\ks}[0]{\kappa s}
+\newcommand{\ks}[0]{\langle\gamma_1,\dots,\gamma_n\rangle}
 \newcommand{\vv}[0]{\mathbf{v}}
 \newcommand{\vvp}[0]{\mathbf{v'}}
-\newcommand{\sexp}[4]{\Sigma_e(#1,#2,#3,#4)}
-\newcommand{\sval}[3]{\Sigma_v(#1,#2,#3)}
-\newcommand{\sapp}[4]{\Sigma_a(#1,#2,\ell,#3,#4)}
+\newcommand{\sexp}[4]{\mathbf{eval}(#1,#2,#3,#4)}
+\newcommand{\sval}[3]{\mathbf{value}(#1,#2,#3)}
+\newcommand{\sapp}[4]{\mathbf{apply}(#1,#2,\ell,#3,#4)}
 \newcommand{\scha}[6]{\Sigma_d(#1,#2,#3,#4,#5,#6)}
-\newcommand{\sdimpz}[6]{\Sigma_{imp_0}(#1,#2,#3,#4,#5,#6)}
-\newcommand{\sdimpo}[5]{\Sigma_{imp_1}(#1,#2,#3,#4,#5)}
-\newcommand{\sdchaz}[6]{\Sigma_{chap_0}(#1,#2,#3,#4,#5,#6)}
-\newcommand{\sdchao}[5]{\Sigma_{chap_1}(#1,#2,#3,#4,#5)}
-\newcommand{\serr}[3]{\Sigma_!(#1,#2,#3)}
+\newcommand{\sdimpz}[6]{\mathbf{imp_0}(#1,#2,#3,#4,#5,#6)}
+\newcommand{\sdimpo}[5]{\mathbf{imp_1}(#1,#2,#3,#4,#5)}
+\newcommand{\sdchaz}[6]{\mathbf{chap_0}(#1,#2,#3,#4,#5,#6)}
+\newcommand{\sdchao}[5]{\mathbf{chap_1}(#1,#2,#3,#4,#5)}
+\newcommand{\serr}[3]{\mathbf{error}(#1,#2,#3)}
 \newcommand{\sbla}[2]{\mathrm{blame}_{#1}(#2)}
 \newcommand{\app}[4]{\mathrm{apply}(#1,#2,#3,#4)}
 \newcommand{\red}[2]{\begin{align*}& #1\\\rr\, & #2\end{align*}}
@@ -619,8 +490,6 @@ A program is a term in the grammar with no free variables and in which all ident
 \newcommand{\rr}{\longrightarrow}
 \newcommand{\rrs}{\longrightarrow^{*}}
 
-
-
 \setspecialsymbol{x_1}{$x_1$}
 \setspecialsymbol{x_2}{$x_2$}
 \setspecialsymbol{x_n}{$x_n$}
@@ -637,57 +506,38 @@ A program is a term in the grammar with no free variables and in which all ident
 
 We define the \scheme{letrec} form in terms of the \scheme{let} form.
 
-A recursive definition of the form
-\begin{schemedisplay}
-(letrec ([(x_1 x_2 ... x_n) (values e_1 e_2 ... e_n)])
-  e)
-\end{schemedisplay}
-can be written
-\begin{schemedisplay}
-(let ([(x_1 x_2 ... x_n) (Y_n (LAMBDA (x_1 x_2 ... x_n) e_1)
-                              (LAMBDA (x_1 x_2 ... x_n) e_2)
-                              ...
-                              (LAMBDA (x_1 x_2 ... x_n) e_n))])
-  e)
-\end{schemedisplay}
-where \scheme{Y_n} is defined as
-\begin{schemedisplay}
-(LAMBDA (f_1 f_2 ... f_n)
-  ((LAMBDA (fp_1 fp_2 ... fp_n)
-     (values (fp_1 fp_1 fp_2 ... fp_n)
-             (fp_2 fp_1 fp_2 ... fp_n)
-             ...
-             (fp_n fp_1 fp_2 ... fp_n)))
-   (LAMBDA (fp_1 fp_2 ... fp_n)
-     (LAMBDA (x) ((f_1 (fp_1 fp_1 fp_2 ... fp_n)) x)))
-   (LAMBDA (fp_1 fp_2 ... fp_n)
-     (LAMBDA (x) ((f_2 (fp_2 fp_1 fp_2 ... fp_n)) x)))
-   ...
-   (LAMBDA (fp_1 fp_2 ... fp_n)
-     (LAMBDA (x) ((f_n (fp_n fp_1 fp_2 ... fp_n)) x)))))
-\end{schemedisplay}
+%A recursive definition of the form
+%\begin{schemedisplay}
+%(letrec ([(x_1 x_2 ... x_n) (values e_1 e_2 ... e_n)])
+%  e)
+%\end{schemedisplay}
+%can be written
+%\begin{schemedisplay}
+%(let ([(x_1 x_2 ... x_n) (Y_n (LAMBDA (x_1 x_2 ... x_n) e_1)
+%                              (LAMBDA (x_1 x_2 ... x_n) e_2)
+%                              ...
+%                              (LAMBDA (x_1 x_2 ... x_n) e_n))])
+%  e)
+%\end{schemedisplay}
+%where \scheme{Y_n} is defined as
+%\begin{schemedisplay}
+%(LAMBDA (f_1 f_2 ... f_n)
+%  ((LAMBDA (fp_1 fp_2 ... fp_n)
+%     (values (fp_1 fp_1 fp_2 ... fp_n)
+%             (fp_2 fp_1 fp_2 ... fp_n)
+%             ...
+%             (fp_n fp_1 fp_2 ... fp_n)))
+%   (LAMBDA (fp_1 fp_2 ... fp_n)
+%     (LAMBDA (x) ((f_1 (fp_1 fp_1 fp_2 ... fp_n)) x)))
+%   (LAMBDA (fp_1 fp_2 ... fp_n)
+%     (LAMBDA (x) ((f_2 (fp_2 fp_1 fp_2 ... fp_n)) x)))
+%   ...
+%   (LAMBDA (fp_1 fp_2 ... fp_n)
+%     (LAMBDA (x) ((f_n (fp_n fp_1 fp_2 ... fp_n)) x)))))
+%\end{schemedisplay}
 
 \subsection{$\chapcalc$ Semantics}
 
-expression: forms + primitives + booleans + numbers + labels + variables
-value: primitive + boolean + number + closure + impersonator + chaperone
-semantics: stack frame + stack (sequence of frames) + store + address + environment as finite map
-$\Gamma^{*}$
-
-\begin{verbatim}
-\Sigma_e(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\rho},e)
-\Sigma_a(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{f},\hat{\mathbf{v}})
-\Sigma_v(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\mathbf{v}})
-\Sigma_!(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},b)
-\Sigma_0(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{f},\hat{w},\hat{\mathbf{v}})
-\Sigma_1(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{w},\hat{\mathbf{v}})
-
-\hat{\sigma}\in \hat{Addr}\mapsto powerset(\hat{V})
-\hat{\rho}\in Var\mapsto\hat{Addr}
-\alpha\in\hat{Addr}
-f,w\in\hat{Op}=\hat{Clo}\cup\hat{Imp}\cup\hat{Prim}
-v\in\hat{V}=\hat{Op}\cup\hat{Bool}\cup\hat{Int}
-\end{verbatim}
 
 We use boldface to denote a vector of objects in that category, i.e., $\mathbf{v}$ denotes a vector $\langle v_1,\dots,v_n\rangle$ for some natural number $n$.
 
@@ -696,21 +546,42 @@ We define the semantics of \chapcalc\ in terms of an abstract machine similar to
 With the introduction of chaperones and impersonators (and the incusion of primitive functions), we can no longer count on the operator of an application to be a closure.
 Thus, we will treat these three categories of values as classes of \emph{operators} and will refer to them collectively as such.
 
-In difference, our machine is defined in terms of multiple state variants.
+Our machine is defined in terms of multiple state variants.
 \begin{itemize}
-\item An \emph{evaluation} state $\Sigma_{e}(\langle\gamma,\dots\rangle,\sigma,\rho,e)$ corresponds to a traditional CESK state.
+\item An \emph{evaluation} state $\sexp{\ks}{\sigma}{\rho}{e}$ corresponds to a traditional CESK state.
 (The order of the components is reversed, however, to aid factoring out common components from among the variants.)
 
 %$\varsigma\in\mathrm{Kont}\times\mathrm{Sto}\times\mathrm{Env}\times\mathrm{Exp}$
 
-\item An \emph{apply} state $\Sigma_{a}(\langle\gamma,\dots\rangle,\sigma,f,\mathbf{v})$ represents a point of application and dispatches on the operator type (closure, impersonator, or primitive).
-\item A \emph{value} state $\Sigma_{v}(\langle\gamma,\dots\rangle,\sigma,\mathbf{v})$ represents a point of return and dispatches on the type of the top continuation frame.
+\item A state $\sapp{\ks}{\sigma}{f}{\mathbf{v}}$ represents a point of application and dispatches on the operator type (closure, impersonator, or primitive).
+\item A state $\sval{\ks}{\sigma}{\mathbf{v}}$ represents a point of return and dispatches on the type of the top continuation frame.
 If the continuation is empty, the constituent values are the results of the program.
-\item An \emph{error} state $\Sigma_!(\langle\gamma,\dots\rangle,\sigma,b)$, represents the arisal of an error and, as the result of the program, may include blame information.
+\item A state $\serr{\ks}{\sigma}{b}$, represents the arisal of an error and, as the result of the program, may include blame information.
 \item Finally, we define a set of \emph{dummy} states which splits a transition which would otherwise pop and push a frame simulaneously into a sequence of two transitions which performs each separately.
 (This eases further the transition to a pushdown system.)
 \end{itemize}
 
+
+
+%expression: forms + primitives + booleans + numbers + labels + variables
+%value: primitive + boolean + number + closure + impersonator + chaperone
+%semantics: stack frame + stack (sequence of frames) + store + address + environment as finite map
+%$\Gamma^{*}$
+
+%\begin{verbatim}
+%\Sigma_e(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\rho},e)
+%\Sigma_a(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{f},\hat{\mathbf{v}})
+%\Sigma_v(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\mathbf{v}})
+%\Sigma_!(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},b)
+%\Sigma_0(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{f},\hat{w},\hat{\mathbf{v}})
+%\Sigma_1(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{w},\hat{\mathbf{v}})
+
+%\hat{\sigma}\in \hat{Addr}\mapsto powerset(\hat{V})
+%\hat{\rho}\in Var\mapsto\hat{Addr}
+%\alpha\in\hat{Addr}
+%f,w\in\hat{Op}=\hat{Clo}\cup\hat{Imp}\cup\hat{Prim}
+%v\in\hat{V}=\hat{Op}\cup\hat{Bool}\cup\hat{Int}
+%\end{verbatim}
 
 %\begin{figure}
 %\begin{align*}
@@ -1306,15 +1177,15 @@ A more powerful analysis, such as a higher-order size-change termination analysi
 Because higher-order contracts often refine domains, the choice of abstraction function can have significant ramifications for the precision of the analysis.
 For instance, an analysis of the program
 \begin{schemedisplay}
-(letrec ([(fac) (values (LAMBDA (n)
+(letrec ([(fact) (values (LAMBDA (n)
                           (let ([test0 (= n 0)])
                             (if test0
                                 1
                                 (let ([(n-1) (- n 1)])
-                                  (let ([(rec) (fac n-1)])
+                                  (let ([(rec) (fact n-1)])
                                     (* n rec)))))))])
-  (let ([(fac) (-> fac nonnegative? positive?)])
-    (fac 5)))
+  (let ([(fact) (-> fact nonnegative? positive?)])
+    (fact 5)))
 \end{schemedisplay}
 using a singleton domain [?] for integers will fail to discharge the chaperone.
 A domain which distinguishes values coincident with the edges of the contract would be able to.
@@ -1528,6 +1399,97 @@ If only promoted or discharged chaperones flow to it, we can replace it with the
 
 We also must contend with the \scheme{chaperone?} and \scheme{impersonator?} predicates. We can apply similar reasoning to integrate them into our original analysis.
 Given that Racket programmers are discouraged from using them, we don't expect them to regularly upend our analysis, but of course we must account for them.
+
+\section{Next}
+
+Not changing complexity, the time factor is less pernicious, but it is hard not to think of the waste effected by the application of a sequence of idempotent operators.
+
+Now the programmer wants to define his own contract predicates \scheme{even?} and \scheme{odd?}. Aware of the cost of contracts on tail-recursive functions, he opts against their use.
+\begin{schemedisplay}
+(define (even? n)
+  (if (= n 0)
+      #t
+      (odd? (- n 1))))
+      
+(define (odd? n)
+  (if (= n 1)
+      #t
+      (even? (- n 1))))
+\end{schemedisplay}
+for use in the definition
+\begin{schemedisplay}
+(define/contract (partial-succ n)
+  (odd? . -> . even?)
+  (+ n 1))
+\end{schemedisplay}
+which calculates the successor only for odd numbers.
+
+What is the result of the call \scheme{(partial-succ 0)}?
+The programmer hopes a contract violation will be detected with blame assigned to the caller.
+Instead, his program never halts.
+
+Now suppose the programmer recruits \scheme{odd?} and \scheme{even?} as contract predicates but, as happens with , fails to implement odd? correctly inst
+
+
+%It takes time to determine compliance of first-order values as first-order contracts can be arbitrary predicates.
+%Additionally, functions may ascribe contracts to their higher-order arguments which themselves do similarly, even recursively.
+
+%There isn't much a calculus can do to solve the time issue, especially in the face of dependent contracts.
+
+%Because contract compliance of higher-order values cannot be determined in general at ascription time, compliance checks must be attached to values to be performed later.
+%These attachments may accumulate, even changing the asymptotic space complexity of the program \cite{herman2010space} unless otherwise handled (again see \cite{herman2010space} or, for example, \cite{siek2010threesomes}).
+
+%This space issue is well-known and a few different approaches have been taken to deal with it:
+%Herman's coercion calculus, Wadler and Sieks' threesome calculus, the space-efficient contracts author
+%These do well to soundly preserve the asymptotic space complexity of the program and perhaps the time as well.
+
+
+
+
+%The motivation for this was to provide an abstract garbage collector a set of live frames, disregarding any stack structure latent in the control flow graph.
+
+%This description alone is enough to allow us to reason statically about features based on stack inspection, such as security checks [cite] and dynamic binding [cite].
+%We will use it to approximate blame on a misbehaving program.
+%After considering all possible sources of such blame, a straightforward analysis allows us to alter contract sites, shifting some of the dynamic burden to the static.
+
+% thus, in order to soundly discharge contracts from the original program, we must soundly discharge impersonators and chaperones.
+%The implementation of familiar language features is sometimes accomplished through alien constructs.
+% (Because the feature must be situated particularly within the already existing features of the language.)
+%Contracts are a common feature of dynamically-typed languages.
+%Higher-order contracts \cite{findler2002contracts} increase the domain of contracts to higher-order values.
+%Of course, codomain compliance of a higher-order contract cannot be decided at attachment time.
+%Instead, contracts are decomposed and positioned to intercept the arguments and results of application--the earliest possible time that contract compliance can be determined.
+%This \emph{de facto} wrapping of deferred contract checks imposes space and time overhead.
+%Wadler and his cronies and Herman and his cronies \cite{wadler2009well,herman2010space} show how the accumulation of wrappers can grow unbounded and offer various solutions to ameliorate this.
+%Determining contract compliance can make up a significant portion of reduction.
+
+%Higher-order contracts \cite{findler2002contracts} are now familiar constructs of languages but their implementation in Racket, which must cope with other language features--perhaps incidentally, is in terms of value wrappers.
+% \emph{impersonators} and \emph{chaperones}.
+%In Racket, data contracts are implemented at the bytecode level using interposition primitives--that is, values are wrapped and these wrappers intercept arguments and results.
+%Because functions are data in a higher-order language, special care has been given to enforcing safe and sound function contracts.
+%Of course, codomain contract compliance cannot be decided.
+%In consequence, codomain contract checks are deferred until the function actually delivers a value.
+
+%Nevertheless, analysis tools have access to more of certain kinds of information after compilation and so have the potential to prove more and different properties about programs.
+%Specifically, analysis tools for Racket have access to the whole program after module compilation through a \emph{demodularization} process.
+
+%Racket program lifecycle--the tipping of various types of information
+
+% a static analysis defines a class of program transformations
+% if the analysis is sound, the transformation is meaning-preserving
+% are these two preceding statements true?
+
+%This goal can be sought at each of the various stages of the Racket program lifecycle.
+%Initially, programs are organized into modules, and dynamic behavior can be gleaned from contract declarations at module boundaries.\cite{tobin2012higher}
+%Each module is compiled in isolation to bytecode; the bytecode compiler performs optimizations which rely on at most basic flow analysis are performed (constant-folding, 
+%``The bytecode compiler applies all standard optimizations, such as constant propagation, constant folding, inlining, and dead-code elimination.''
+%The journey to this stage discards high-level information and doesn't acquire much new information, so analysis here is probably fruitless.
+
+%Racket modules are compiled to bytecode. This
+
+%implementation of contracts within racket using interposition
+
+%talk about blame and the method Racket uses to assign blame--the compilation process, etc.
 
 
 %\appendix
