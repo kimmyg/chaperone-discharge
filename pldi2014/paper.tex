@@ -39,38 +39,58 @@
 \titlebanner{banner above paper title}        % These are ignored unless
 \preprintfooter{short description of paper}   % 'preprint' option specified.
 
-\title{Static Discharge and Demotion of Low-Level, Higher-Order Contracts}
+\title{Preventing Dynamic Installation of Higher-Order Contracts Statically}
 %\subtitle{Subtitle Text, if any}
 
-\authorinfo{Kimball Germane\and Matthew Might}
-           {University of Utah}
+%\authorinfo{Kimball Germane\and Matthew Might}
+%           {University of Utah}
+
+\authorinfo{name(s) withheld}
+           {}
 
 \begin{document}
 
 \newcommand{\chapcalc}[0]{\ensuremath{\lambda_{\mathcal{C}}}}
 
 % TODO:
+% talk about needing to keep track of every frame of all functions which haven't returned but we're only interested in the chaperone pos and neg frames because they tell us the active chaperones--we can (over-)approximate the active chaperones with the flow analysis.
+% make the "dynamic blame" be an actual transition to a blame state or something like that--no matter the error, we want to look at the dependent, so maybe we have no dynamic blame and just have an "empty" blame knowing that the implementation can determine blame actually but we don't need to pretend (because we need all the active, not the youngest active)
 % format everything
 % revisit factorial at the end
 % visit church encoded factorial
 % visit the impact of domains
 % motivate need for termination analysis
 % figure out a way to present it as product and not sum of contributions
-% take out Y combinator and church factorial fluff
+% take out church factorial fluff
 % write related work section
-% WRITE BETTER ABSTRACT
 % 
 
 
 \maketitle
 
 \begin{abstract}
-Dynamic contract checks---especially for higher-order values---take time and space to perform.
-In practice, the cost of these checks can dominate the run-time cost of the executing the program.
-It is therefore desirable to discharge them statically where possible.
-However, implementation realities may mandate a shift in perspective as the view of contracts at low levels may vary drastically.
-We focus on demodularized Racket programs in which dynamic procedure contracts are expressed in terms of higher-order interposition and present an analysis for whole programs to statically detect and discharge benign contracts.
-Utilizing a combination of introspective pushdown control-flow analysis and termination analysis, we demonstrate cases in which our analysis significantly decreases the run-time burden of specification enforcement.
+Dynamic contract enforcement costs time and space to perform, sometimes dominating the execution cost of programs.
+Gathering the static information necessary to discharge them before program execution may shift the perspective of contracts to a lower level and force analyses to contend with the expediencies of implementation representations.
+In systems where contracts can be attached dynamically, as well as enforced, analyses must consider any influence a given contract has on program behavior as well as that of any contract attached or enforced by it, directly or indirectly.
+We present a static analysis which can extract and reason about these relationships to safely discharge contracts when they are transparent to the program.
+We analyze Racket to demonstrate the ability of the analysis to cope with dynamic contract dependencies and particular implementation constraints.
+Our analysis integrates the reasoning of dependency, blame, and termination which allows us to considerably reduce run-time contract prevalence.
+
+
+%Dynamic contract checks cost time and space to perform.
+%In languages where contracts may be attached dynamically, as well as checked, costs compound until they dominate actual program execution.
+%Gathering the static information necessary to discharge them \emph{before} program execution may shift the view of contracts to a lower level and force analyses to contend with implementation representations.
+%In languages where contracts may be attached dynamically, as well as checked, judging whether a contract can be safely discharged requires establishing that \emph{every} contract whose attachment or checking 
+%Dynamic contract checks---especially for higher-order values---take time and space to perform.
+%In practice, the cost of these checks can dominate the run-time cost of the executing the program.
+%It is therefore desirable to discharge them statically where possible.
+%However, implementation realities may mandate a shift in perspective as the view of contracts at low levels may vary.
+%is not as simple as determining when they directly influence the meaning of the program
+%underscores the reality that, in correct programs, contracts should be transparent
+%In systems where contracts may be attached to higher-order values dynamically and at the hand of another contracted value, the scope 
+%If 
+%We focus on demodularized Racket programs in which dynamic procedure contracts are expressed in terms of higher-order interposition and present an analysis for whole programs to statically detect and discharge benign contracts.
+%Utilizing a combination of introspective pushdown control-flow analysis and termination analysis, we demonstrate cases in which our analysis significantly decreases the run-time burden of specification enforcement.
 \end{abstract}
 
 %\category{CR-number}{subcategory}{third-level}
@@ -262,41 +282,51 @@ Consider the installation of a chaperone on the square root function, \scheme{sq
        (values (LAMBDA (y)
                  (if (and (real? x) (< (abs (- (* y y) x)) EPS))
                      y
-                     (raise positive error ...)))
+                     (blame positive blame ...)))
                x)
-       (raise negative error ...))))
+       (raise negative blame ...))))
 \end{schemedisplay}
 wherein the chaperoning procedure not only refines the domain contract of \scheme{sqrt} (from \scheme{number?} to non-negative \scheme{real?}) but checks its result against a correctness constraint.
 In general, allowing the positive guard to be lexically embedded in the negative guard gives the former access to the arguments of the latter which, in turn, allows richer specifications to be expressed, such as dependent contracts \cite{findler2002contracts}.
 
-\subsection{Run-time cost of impersonators and chaperones}
+\subsection{From contracts to impersonators and run-time costs}
 
-\subsection{Mapping from contracts to impersonators}
-
-
+There are three distinct phases in the contract lifecycle:
+The \emph{creation} phase occurs when the application of contract combinators is evaluated---for instance \scheme{(number? . -> . number?)}.
+The \emph{projection} phase occurs when the contract is attached to a value and so may occur multiple times.
+We can imagine a procedure which maps a simple contract and higher-order value to a contracted higher-order value which would behave similar to
+\begin{schemedisplay}
+(define (-> dom/c rng/c)
+  (LAMBDA (f)
+    (LAMBDA (x)
+      (rng/c (f (dom/c x))))))
+\end{schemedisplay}
+The \emph{application} phase occurs whenever the contract is checked.
+For contracted procedures, the domain and range contracts are checked whenever the procedure is applied.
 
 We can put the phases of creation, projection, and application of the contract lifecycle in correspondence with components of the impersonating lifecycle.
 
 The contracted tail-recursive factorial procedure expressed as a chaperone is
 \begin{schemedisplay}
 (define fact (chaperone-procedure
-             (LAMBDA (n a)
-               (if (= n 0)
-                   a
-                   (fact (- n 1) (* n a))))
-             (LAMBDA (n a)
-               (if (and (nonnegative-integer? a)
-                        (positive-integer? a))
-                   (values (LAMBDA (a)
-                             (if (positive-integer? a)
-                                 a
-                                 (raise positive blame ...)))
-                           n a)
-                   (raise negative blame ...)))))
+              (LAMBDA (n a)
+                (if (= n 0)
+                    a
+                    (fact (- n 1) (* n a))))
+              (LAMBDA (n a)
+                (if (and (nonnegative-integer? a)
+                         (positive-integer? a))
+                    (values (LAMBDA (a)
+                              (if (positive-integer? a)
+                                  a
+                                  (raise positive blame ...)))
+                            n a)
+                    (raise negative blame ...)))))
 \end{schemedisplay}
 
-The creation time of a contract corresponds with the evaluation of the negative guard procedure expression (typically at installment time) and the positive guard procedure expression (at application time).
-In the vast majority of cases, these guard expressions are simple $\lambda$-terms so their contribution to the overall cost of interposition is negligible.
+The creation time of the constituent contract corresponds with the evaluation of the negative guard procedure expression (a simple $\lambda$-term, as is typical) and the positive guard procedure expression.
+Because the positive guard expression is evaluation at the time of application, the creation time of the contract corresponds to two separate times.
+%In the vast majority of cases, these guard expressions are simple $\lambda$-terms so their contribution to the overall cost of interposition is negligible.
 
 The projection time of a contract corresponds with the installation of an impersonator on a procedure.
 This is essentially an atomic operation.
@@ -305,7 +335,7 @@ The bulk of the run-time cost of interposition is accrued at application time wh
 The cost incurred is due to enforcement of the interposition protocol.
 This entails that
 \begin{itemize}
-\item negative guards must return the same number of values as given (except for an optional positive guard);
+\item negative guards must return the same number of values as given (except for an optional positive guard value);
 \item the positive guard, if provided, must be a procedure;
 \item the positive guard must accept the number of results produced by the impersonated procedure;
 \item the positive guard must produce the same number of results as arguments given to it;
@@ -322,13 +352,10 @@ Thus, we would prefer to remove all application costs due to interposition, but 
 
 In order to explicate a static analysis of higher-order interposition, we define \chapcalc, or \emph{chaperone calculus}, an extension of the A-normalized $\lambda$-calculus with interposition facilities.
 
-As only a moderate extension of the $\lambda$-calculus, \chapcalc\ lacks many Racket features, not the least of which is mutation.
+As only a moderate extension of the $\lambda$-calculus, \chapcalc\ lacks many Racket features.
+Mutation, in particular, is conspicuously absent.
+We discuss the integration of other language features in Section \ref{sec:limitations}.
 
-%We will see, in addition, that counterparts to both \scheme{impersonate-procedure} and \scheme{chaperone-procedure} exist as tags of syntactic forms instead of first-class values as in Racket.
-%Providing them as first-class entities would increase the expressive power [cite Felleisen] of \chapcalc\ and, in general, require a more powerful analysis.
-%In practice, \scheme{impersonate-procedure} and \scheme{chaperone-procedure} are most often referenced directly by name and so treated more as syntactic tags.
-%We will treat their \chapcalc\ counterparts as such specifically to simplify the presentation of the analysis, but discuss a strategy to integrate first-class uses of them in Section ?.
-%In the actual analysis, we consider all call sites and add a condition for the sound discharge of a call site that \scheme{chaperone-operator} is the only values to flow to the operator position.
 
 \subsection{\chapcalc\ Syntax}
 
@@ -337,7 +364,7 @@ The syntax of \chapcalc\ can be seen in figure \ref{fig:syntax}.
 \chapcalc\ inherits application, abstraction, and variable terms from the $\lambda$-calculus.
 It includes simple values from the domain of integers and booleans as well as a set of first-class primitive procedures which operate over these values.
 
-The syntactic class \ae signifies \emph{atomic expressions} and includes $\lambda$-terms, variables, and the simple values of booleans, integers, and primitive procedures, which include \scheme{impersonate-operator} and \scheme{chaperone-operator}.
+The syntactic class $\mathit{ae}$ signifies \emph{atomic expressions} and includes $\lambda$-terms, variables, and the simple values of booleans, integers, and primitive procedures, which include \scheme{impersonate-operator} and \scheme{chaperone-operator}.
 Expressions classified as such will never produce an error or diverge.
 
 The syntactic class $c$ denotes procedure application sites which are formed by an atomic operator expression followed by a sequence of atomic operand expressions.
@@ -345,9 +372,6 @@ The syntactic class $c$ denotes procedure application sites which are formed by 
 The syntatic class of expressions, denoted $e$, includes \scheme{let}, and \scheme{if} expressions.
 
 Every term is annotated with a unique label $\ell$ to keep otherwise identical terms distinguishable, but labels will be made explicit only for application sites.
-
-
-%The second subform of a \scheme{chaperone-operator} or \scheme{impersonate-operator} remains a proper expression to facilitate some of the blame semantics.
 
 \newcommand{\vx}[0]{\mathbf{x}}
 
@@ -363,32 +387,13 @@ Every term is annotated with a unique label $\ell$ to keep otherwise identical t
 
 \newcommand{\true}[0]{\mathrm{\#t}}
 \newcommand{\false}[0]{\mathrm{\#f}}
-\setlength{\tabcolsep}{1pt}
-\begin{figure}
-\label{fig:syntax}
-%\begin{tabular}{rcl}
-%c & = & $\appe{e}{e\,\dots}$ & application\\
-%\end{tabular}
 
 \newcommand{\stxclass}[4]{$#1\in\mathbf{#2}$ &::=& #3 & #4}
 \newcommand{\stxclasscont}[2]{&$|$& #1 & #2}
 
-%\begin{align*}
-% \expr \in \syn{Exp} &\produces \letiform{\vv}{\call}{\expr} && \text{[non-tail call]}
-% \\
-% &\;\;\opor\;\; \call && \text{[tail call]}
-% \\
-% &\;\;\opor\;\; \aexpr && \text{[return]}
-% \\
-% \fexpr,\aexpr \in \syn{Atom} &\produces \vv \opor \lam && \text{[atomic expressions]}
-% \\
-% \lam \in \syn{Lam} &\produces \lamform{\vv}{\expr} && \text{[lambda terms]}
-% \\
-% \call \in \syn{Call} &\produces \appform{\fexpr}{\aexpr} && \text{[applications]}
-% \\
-% \vv \in \syn{Var} &\text{ is a set of identifiers} && \text{[variables]}
-% \text.
-%\end{align*}
+\setlength{\tabcolsep}{1pt}
+\begin{figure}
+\label{fig:syntax}
 
 \begin{tabular}{ r r l l }
 \stxclass{c}{Call}{\scheme|(ae ae ...)|$^\ell$}{application}\\
@@ -401,8 +406,9 @@ Every term is annotated with a unique label $\ell$ to keep otherwise identical t
 \stxclasscont{\scheme|chaperone-operator| $|$ \scheme|values| $|$ \scheme|raise|}{}\\
 \stxclasscont{\scheme|not| $|$ \scheme|operator?| $|$ \scheme|integer?| $|$ \scheme|boolean?|}{}\\
 \stxclass{x}{Var}{an infinite set of variables}{}\\
+\stxclass{\ell}{Lab}{an infinite set of labels}{}\\
 \stxclass{i}{Int}{$0\,|\,1\,|\,-1\,|\,2\,|\,-2\,|\,\dots$}{integers}\\
-\stxclass{b}{Bool}{$\#t\,|\,\#f$}{booleans}
+\stxclass{b}{Bool}{$\true\,|\,\false$}{booleans}
 \end{tabular}
 
 \caption{The syntax of \chapcalc.}
@@ -451,17 +457,21 @@ A program is a term in the grammar with no free variables and in which all ident
 
 \newcommand{\dynbla}[1]{\mathrm{dynamic\mhyphen blame}(#1)}
 
-\newcommand{\ks}[0]{\langle\gamma_1,\dots,\gamma_n\rangle}
+\newcommand{\nttwo}[3]{\ensuremath{\mathbf{#1}(#2,#3)}}
+\newcommand{\ntthr}[4]{\ensuremath{\mathbf{#1}(#2,#3,#4)}}
+\newcommand{\ntfou}[5]{\ensuremath{\mathbf{#1}(#2,#3,#4,#5)}}
+
+\newcommand{\ks}[0]{\gamma^*}
 \newcommand{\vv}[0]{\mathbf{v}}
 \newcommand{\vvp}[0]{\mathbf{v'}}
 \newcommand{\sexp}[4]{\mathbf{eval}(#1,#2,#3,#4)}
 \newcommand{\sval}[3]{\mathbf{value}(#1,#2,#3)}
 \newcommand{\sapp}[4]{\mathbf{apply}(#1,#2,\ell,#3,#4)}
-\newcommand{\scha}[6]{\Sigma_d(#1,#2,#3,#4,#5,#6)}
-\newcommand{\sdimpz}[6]{\mathbf{imp_0}(#1,#2,#3,#4,#5,#6)}
-\newcommand{\sdimpo}[5]{\mathbf{imp_1}(#1,#2,#3,#4,#5)}
-\newcommand{\sdchaz}[6]{\mathbf{chap_0}(#1,#2,#3,#4,#5,#6)}
-\newcommand{\sdchao}[5]{\mathbf{chap_1}(#1,#2,#3,#4,#5)}
+%\newcommand{\scha}[6]{\Sigma_d(#1,#2,#3,#4,#5,#6)}
+\newcommand{\simpz}[6]{\mathbf{imp_0}(#1,#2,#3,#4,#5,#6)}
+\newcommand{\simpo}[5]{\mathbf{imp_1}(#1,#2,#3,#4,#5)}
+\newcommand{\schaz}[6]{\mathbf{chap_0}(#1,#2,#3,#4,#5,#6)}
+\newcommand{\schao}[5]{\mathbf{chap_1}(#1,#2,#3,#4,#5)}
 \newcommand{\serr}[3]{\mathbf{error}(#1,#2,#3)}
 \newcommand{\sbla}[2]{\mathrm{blame}_{#1}(#2)}
 \newcommand{\app}[4]{\mathrm{apply}(#1,#2,#3,#4)}
@@ -469,189 +479,111 @@ A program is a term in the grammar with no free variables and in which all ident
 
 \newcommand{\bind}[4]{\mathrm{bind}(#1,#2,#3,#4)}
 
-\newcommand{\clo}[2]{(#1,#2)}
-\newcommand{\cha}[2]{\mathrm{chaperone}(\ell,#1,#2)}
-\newcommand{\imp}[2]{\mathrm{impersonator}(#1,#2)}
-
-\newcommand{\chak}[1]{\mathrm{chap}_\kappa(\ell,#1)}
-\newcommand{\chacwk}[2]{\mathrm{chap\mhyphen neg\mhyphen ults}_\kappa(\ell,#1,#2)}
-\newcommand{\chacfk}[1]{\mathrm{chap\mhyphen fun\mhyphen ults}_\kappa(\ell,#1)}
-\newcommand{\chacrk}[1]{\mathrm{chap\mhyphen pos\mhyphen ults}_\kappa(\ell,#1)}
-
-\newcommand{\impk}[1]{\mathrm{imp}_\kappa(\ell,#1)}
-\newcommand{\impcwk}[2]{\mathrm{imp\mhyphen neg\mhyphen ults}_\kappa(\ell,#1,#2)}
-\newcommand{\impcfk}[1]{\mathrm{imp\mhyphen fun\mhyphen ults}_\kappa(\ell,#1)}
-\newcommand{\impcrk}[1]{\mathrm{imp\mhyphen pos\mhyphen ults}_\kappa(\ell,#1)}
-
+\newcommand{\clo}[2]{\nttwo{clos}{#1}{#2}}
+\newcommand{\imp}[2]{\ntthr{imp}{\ell}{#1}{#2}}
+\newcommand{\cha}[2]{\ntthr{chap}{\ell}{#1}{#2}}
 
 \newcommand{\letk}[3]{\mathrm{let}_\kappa(#1,#2,#3)}
 
+\newcommand{\impcwk}[2]{\ntthr{imp\mhyphen neg}{\ell}{#1}{#2}}
+\newcommand{\impcfk}[1]{\nttwo{imp\mhyphen fun}{\ell}{#1}}
+\newcommand{\impcrk}[1]{\nttwo{imp\mhyphen pos}{\ell}{#1}}
+
+\newcommand{\chacwk}[2]{\ntthr{chap\mhyphen neg}{\ell}{#1}{#2}}
+\newcommand{\chacfk}[1]{\nttwo{chap\mhyphen fun}{\ell}{#1}}
+\newcommand{\chacrk}[1]{\nttwo{chap\mhyphen pos}{\ell}{#1}}
 
 \newcommand{\rr}{\longrightarrow}
 \newcommand{\rrs}{\longrightarrow^{*}}
 
-\setspecialsymbol{x_1}{$x_1$}
-\setspecialsymbol{x_2}{$x_2$}
-\setspecialsymbol{x_n}{$x_n$}
-\setspecialsymbol{e_1}{$e_1$}
-\setspecialsymbol{e_2}{$e_2$}
-\setspecialsymbol{e_n}{$e_n$}
-\setspecialsymbol{f_1}{$f_1$}
-\setspecialsymbol{f_2}{$f_2$}
-\setspecialsymbol{f_n}{$f_n$}
-\setspecialsymbol{fp_1}{$f'_1$}
-\setspecialsymbol{fp_2}{$f'_2$}
-\setspecialsymbol{fp_n}{$f'_n$}
-\setspecialsymbol{Y_n}{$Y_n$}
-
-We define the \scheme{letrec} form in terms of the \scheme{let} form.
-
-%A recursive definition of the form
-%\begin{schemedisplay}
-%(letrec ([(x_1 x_2 ... x_n) (values e_1 e_2 ... e_n)])
-%  e)
-%\end{schemedisplay}
-%can be written
-%\begin{schemedisplay}
-%(let ([(x_1 x_2 ... x_n) (Y_n (LAMBDA (x_1 x_2 ... x_n) e_1)
-%                              (LAMBDA (x_1 x_2 ... x_n) e_2)
-%                              ...
-%                              (LAMBDA (x_1 x_2 ... x_n) e_n))])
-%  e)
-%\end{schemedisplay}
-%where \scheme{Y_n} is defined as
-%\begin{schemedisplay}
-%(LAMBDA (f_1 f_2 ... f_n)
-%  ((LAMBDA (fp_1 fp_2 ... fp_n)
-%     (values (fp_1 fp_1 fp_2 ... fp_n)
-%             (fp_2 fp_1 fp_2 ... fp_n)
-%             ...
-%             (fp_n fp_1 fp_2 ... fp_n)))
-%   (LAMBDA (fp_1 fp_2 ... fp_n)
-%     (LAMBDA (x) ((f_1 (fp_1 fp_1 fp_2 ... fp_n)) x)))
-%   (LAMBDA (fp_1 fp_2 ... fp_n)
-%     (LAMBDA (x) ((f_2 (fp_2 fp_1 fp_2 ... fp_n)) x)))
-%   ...
-%   (LAMBDA (fp_1 fp_2 ... fp_n)
-%     (LAMBDA (x) ((f_n (fp_n fp_1 fp_2 ... fp_n)) x)))))
-%\end{schemedisplay}
+We define the \scheme{letrec} form in terms of the \scheme{let} form and \scheme{Y} combinator.
 
 \subsection{$\chapcalc$ Semantics}
 
+We define the semantics of \chapcalc\ in terms of an abstract machine similar to Felleisen's CESK machine~\cite{felleisen1987calculus} to facilitate the eventual pushdown analysis.
 
-We use boldface to denote a vector of objects in that category, i.e., $\mathbf{v}$ denotes a vector $\langle v_1,\dots,v_n\rangle$ for some natural number $n$.
-
-We define the semantics of \chapcalc\ in terms of an abstract machine similar to Felleisen's CESK machine~\cite{felleisen1987calculus} to directly apply a particular static analysis.
-
-With the introduction of chaperones and impersonators (and the incusion of primitive functions), we can no longer count on the operator of an application to be a closure.
+With the introduction of chaperones and impersonators and the incusion of primitive functions, we can no longer count on the operator of an application to be a closure.
 Thus, we will treat these three categories of values as classes of \emph{operators} and will refer to them collectively as such.
 
-Our machine is defined in terms of multiple state variants.
+We use boldface to denote a vector of objects in that category; e.g., $\vv$ denotes a vector $\langle v_1,\dots,v_n\rangle$ for some natural number $n$.
+We use a star ($^*$) for the same purpose when boldface is not available; e.g., $\gamma^*$ denotes a vector $\langle\gamma_1,\dots,\gamma_n\rangle$.
+
+
+
+\newcommand{\funarr}[2]{$\mathbf{#1}\rightarrow\mathbf{#2}$}
+
+\begin{figure}
+\label{fig:states}
+
+\begin{tabular}{ r r l l }
+\stxclass{\varsigma}{State}{$\sexp{\ks}{\sigma}{\rho}{e}$}{evaluation}\\
+\stxclasscont{$\sapp{\ks}{\sigma}{f}{\vv}$}{apply}\\
+\stxclasscont{$\sval{\ks}{\sigma}{\vv}$}{value}\\
+\stxclasscont{$\serr{\ks}{\sigma}{b}$}{error}\\
+\stxclasscont{$\simpz{\ks}{\sigma}{\ell}{f}{w}{\vv}$}{imp0}\\
+\stxclasscont{$\simpo{\ks}{\sigma}{\ell}{w}{\vv}$}{imp1}\\
+\stxclasscont{$\schaz{\ks}{\sigma}{\ell}{f}{w}{\vv}$}{chap0}\\
+\stxclasscont{$\schao{\ks}{\sigma}{\ell}{w}{\vv}$}{chap1}\\
+\stxclass{\gamma}{Frame}{\ntthr{let}{\vx}{\rho}{e}}{let}\\
+\stxclasscont{\impcwk{f}{\vv}}{impersonator negative}\\
+\stxclasscont{\impcfk{w}}{impersonator function}\\
+\stxclasscont{\impcrk{\vv}}{impersonator positive}\\
+\stxclasscont{\chacwk{f}{\vv}}{chaperone negative}\\
+\stxclasscont{\chacfk{w}}{chaperone function}\\
+\stxclasscont{\chacrk{\vv}}{chaperone positive}\\
+\stxclass{v}{Val}{$f\,|\,i\,|\,b$}{values}\\
+\stxclass{\sigma}{Store}{\funarr{Addr}{Val}}{stores}\\
+\stxclass{\rho}{Env}{\funarr{Var}{Addr}}{environments}\\
+\stxclass{f,w}{Op}{\nttwo{clos}{\mathit{lam}}{\rho}}{closures}\\
+\stxclasscont{\ntthr{imp}{\ell}{f}{w}}{impersonators}\\
+\stxclasscont{\ntthr{chap}{\ell}{f}{w}}{chaperones}\\
+\stxclasscont{$p$}{primitives}
+\end{tabular}
+
+\caption{Abstract machine state space for \chapcalc}
+\end{figure}
+
+Figure~\ref{fig:states} presents the variants of machine states.
 \begin{itemize}
 \item An \emph{evaluation} state $\sexp{\ks}{\sigma}{\rho}{e}$ corresponds to a traditional CESK state.
 (The order of the components is reversed, however, to aid factoring out common components from among the variants.)
 
 %$\varsigma\in\mathrm{Kont}\times\mathrm{Sto}\times\mathrm{Env}\times\mathrm{Exp}$
 
-\item A state $\sapp{\ks}{\sigma}{f}{\mathbf{v}}$ represents a point of application and dispatches on the operator type (closure, impersonator, or primitive).
-\item A state $\sval{\ks}{\sigma}{\mathbf{v}}$ represents a point of return and dispatches on the type of the top continuation frame.
+\item A state $\sapp{\ks}{\sigma}{f}{\vv}$ represents a point of application and dispatches on the operator type (closure, impersonator, or primitive).
+\item A state $\sval{\ks}{\sigma}{\vv}$ represents a point of return and dispatches on the type of the top continuation frame.
 If the continuation is empty, the constituent values are the results of the program.
 \item A state $\serr{\ks}{\sigma}{b}$, represents the arisal of an error and, as the result of the program, may include blame information.
 \item Finally, we define a set of \emph{dummy} states which splits a transition which would otherwise pop and push a frame simulaneously into a sequence of two transitions which performs each separately.
 (This eases further the transition to a pushdown system.)
 \end{itemize}
 
+Before defining the evaluation relation, we define a few meta-functions.
 
+\subsection{chaperone-of?}
 
-%expression: forms + primitives + booleans + numbers + labels + variables
-%value: primitive + boolean + number + closure + impersonator + chaperone
-%semantics: stack frame + stack (sequence of frames) + store + address + environment as finite map
-%$\Gamma^{*}$
+\newcommand{\chapof}[2]{\ensuremath{\mathrm{chaperone\mhyphen of?}(#1,#2)}}
 
-%\begin{verbatim}
-%\Sigma_e(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\rho},e)
-%\Sigma_a(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{f},\hat{\mathbf{v}})
-%\Sigma_v(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\mathbf{v}})
-%\Sigma_!(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},b)
-%\Sigma_0(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{f},\hat{w},\hat{\mathbf{v}})
-%\Sigma_1(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{w},\hat{\mathbf{v}})
-
-%\hat{\sigma}\in \hat{Addr}\mapsto powerset(\hat{V})
-%\hat{\rho}\in Var\mapsto\hat{Addr}
-%\alpha\in\hat{Addr}
-%f,w\in\hat{Op}=\hat{Clo}\cup\hat{Imp}\cup\hat{Prim}
-%v\in\hat{V}=\hat{Op}\cup\hat{Bool}\cup\hat{Int}
-%\end{verbatim}
-
-%\begin{figure}
-%\begin{align*}
-%  c \in \sa{Conf} &= \syn{Exp} \times \sa{Env} \times \sa{Store} \times \sa{Kont} && %\text{[configurations]}
-%  \\
-%  \aenv \in \sa{Env} &= \syn{Var} \parto \sa{Addr} && \text{[environments]}
-%  \\
-%  \astore \in \sa{Store} &= \sa{Addr} \to \Pow{\sa{Clo}} && \text{[stores]}
-  % \\
-  % \aden \in \sa{Den} &= \Pow{\sa{Clo}} && \text{[denotable values]}
-%  \\
-%  \aclo \in \sa{Clo} &= \syn{Lam} \times \sa{Env} && \text{[closures]}
-%  \\
-%  \acont \in \sa{Kont} &= \sa{Frame}^* && \text{[continuations]}
-%  \\
-%  \Gamma \in \sa{Frame} &= \syn{Var} \times \syn{Exp} \times \sa{Env}  && \text{[stack frames]}
-%  \\
-%  \alpha \in \sa{Addr} &\text{ is a \emph{finite} set of addresses} && \text{[addresses]}
-%  \text.
-%\end{align*}
-%\caption{The abstract configuration-space.}
-%\label{fig:abs-conf-space}
-%\end{figure}
-
-
-
-\begin{verbatim}
-\sigma\in\Sigma = e Kont x Store x Env x Exp
-                | v Kont x Store x Val*
-                | a Kont x Store x Lab x Val x Val*
-           Kont = Frame*
-          Frame = let Var* x Env x Exp
-                | imp-neg Lab x Val x Val* [get rid of labels?]
-                | imp-ope Lab x Val x Val*
-                | imp-pos Lab x Val x Val*
-                | chap-neg Lab x Val x Val*
-                | chap-ope Lab x Val
-                | chap-pos Lab x Val*
-          Store = Addr -> Val
-            Env = Var -> Addr
-           Addr = infinite set of addresses
-            Lab = infinite set of labels
-            Val = Bool U Int U Op
-           Bool = #t | #f
-            Int = 0 | 1 | -1 | ...
-             Op = Clo U Imp U Prim
-            Clo = Lam x Env
-            Imp = i Lab x Op x Op
-                | c Lab x Op x Op
-           Prim = + | - | = | < | >
-                | not | values
-                | chaperone-operator
-                | impersonate-operator
-                | boolean? | integer? | operator?
- 	    Lam = (LAMBDA (x_1 x_2 ... x_n) e)
-\end{verbatim}
-
-The relation $\mathrm{chaperone\mhyphen of?}(v,v')$ holds when parts of $v$ can be derived from corresponding parts of $v'$ through \scheme{chaperone-operator}.
+The relation \chapof{v}{v'} holds when parts of $v$ can be derived from corresponding parts of $v'$ through \scheme{chaperone-operator}.
 
 It holds if any of the following hold.
 (This definition is not given in terms of sequential pattern matching. Two chaperones satisfy the relation if they meet the conditions of the first clause \emph{or} the second clause.)
-\begin{verbatim}
-chaperone-of? (chaperone f w) (chaperone f' w')
-if (chaperone-of? f f') and (chaperone-of? w w')
-;or (chaperone-of? f (chaperone f' w'))
-chaperone-of? (chaperone f w) f'
-if (chaperone-of? f f')
-chaperone-of? (e_LAMBDA,\rho) (e_LAMBDA',\rho')
-if e_LAMBDA=e_LAMBDA' and \rho=\rho'
-\end{verbatim}
+
+\begin{tabular}{ l l}
+\chapof{\cha{f}{w}}{\cha{f'}{w'}} & if \chapof{f}{f'} and \chapof{w}{w'} or if \chapof{f}{\cha{f'}{w'}}\\
+\chapof{\cha{f}{w}}{f'} & if \chapof{f}{f'}\\
+\chapof{f}{f} & if \scheme{operator?(f)}\\
+\end{tabular}
+
+%\begin{verbatim}
+%chaperone-of? (chaperone f w) (chaperone f' w')
+%if (chaperone-of? f f') and (chaperone-of? w w')
+%;or (chaperone-of? f (chaperone f' w'))
+%chaperone-of? (chaperone f w) f'
+%if (chaperone-of? f f')
+%chaperone-of? (e_LAMBDA,\rho) (e_LAMBDA',\rho')
+%if e_LAMBDA=e_LAMBDA' and \rho=\rho'
+%\end{verbatim}
 
 We lift $\mathrm{chaperone\mhyphen of?}$ element-wise over vectors.
 
@@ -660,19 +592,17 @@ A program is injected into a machine state with the function $\mathcal{I} : e\ri
 
 The reduction relation is defined first in terms of the class of machine state.
 
-\newcommand{\Aeval}[1]{\mathcal{A}(\sigma,\rho,#1)}
+\newcommand{\Aeval}[1]{\ensuremath{\mathcal{A}(\sigma,\rho,#1)}}
 
 In the following reductions, $\mathcal{A}$ is defined by
-\begin{align*}
-\Aeval{\lambda}
-\end{align*}
-\begin{verbatim}
-A(\sigma,\rho,lam)=(lam,\rho)
-A(\sigma,\rho,x)=\sigma(\rho(x))
-A(\sigma,\rho,i)=i (int)
-A(\sigma,\rho,t)=t (bool)
-A(\sigma,\rho,p)=p (prim)
-\end{verbatim}
+
+\begin{tabular}{ r l l }
+\Aeval{\mathit{lam}} &= \clo{\mathit{lam}}{\rho} & $\lambda$-terms\\
+\Aeval{x}            &= $\sigma(\rho(x))$ & variables\\
+\Aeval{i}            &= $i$ & integers\\
+\Aeval{t}            &= $t$ & booleans\\
+\Aeval{p}            &= $p$ & primitives\\
+\end{tabular}
 
 \subsubsection{application}
 
@@ -728,7 +658,7 @@ if $|\vx|\ne|\vv|$ where $\vx=\langle x_1,\dots,x_n\rangle$
 Impersonator application recurs on its guard and augments the context to complete the interposition when its guard returns.
 The enlarged context is annotated with the label of the applied chaperone (which itself is the label of its installment site).
 
-\red{\sapp{\ks}{\sigma}{\cha{f}{w}}{\vv}}{\sapp{\chacwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}
+\red{\sapp{\ks}{\sigma}{\imp{f}{w}}{\vv}}{\sapp{\impcwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}
 
 When the results of its wrapper are obtained, the next state is determined by the results.
 If an additional result is provided and it is an operator, it is situated to intercept procedure results.
@@ -737,7 +667,7 @@ If the number of results obtained is the same as the number of arguments given, 
 
 \red{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}{\sapp{\ks}{\sigma}{f}{\vvp}}
 
-\red{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}{\sdchaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}
+\red{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}{\schaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}
 if $|\vv|=|\vvp|$ and $\mathrm{operator?}(w)$.
 
 \red{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}{\sbla{3}{\ell}}
@@ -746,11 +676,11 @@ if $|\vv|=|\vvp|$ but $\mathrm{operator?}(w)$ does not hold.
 \red{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}{\sbla{4}{\ell}}
 if $|\vv|\ne|\vvp|$ and $|\vv|+1\ne|\vvp|$.
 
-\red{\sdimpz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\sapp{\impcfk{w}::\ks}{\sigma}{f}{\vvp}}
+\red{\simpz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\sapp{\impcfk{w}::\ks}{\sigma}{f}{\vvp}}
 
-\red{\sval{\impcfk{w}::\ks}{\sigma}{\vv}}{\sdimpo{\ks}{\sigma}{w}{\vv}{\ell}}
+\red{\sval{\impcfk{w}::\ks}{\sigma}{\vv}}{\simpo{\ks}{\sigma}{w}{\vv}{\ell}}
 
-\red{\sdimpo{\ks}{\sigma}{w}{\vv}{\ell}}{\app{\impcrk{\vv}::\ks}{\sigma}{w}{\vv}}
+\red{\simpo{\ks}{\sigma}{w}{\vv}{\ell}}{\app{\impcrk{\vv}::\ks}{\sigma}{w}{\vv}}
 
 
 
@@ -785,7 +715,7 @@ if $|\vv|=|\vvp|$ but $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$ does not hold.
 
 --
 
-\red{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}{\sdchaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}
+\red{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}{\schaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}
 if $|\vv|=|\vvp|$, $\mathrm{operator?}(w)$, and $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$
 
 \red{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}{\sbla{3}{\ell}}
@@ -799,11 +729,11 @@ if $|\vv|=|\vvp|$ and $\mathrm{operator?}(w)$ but $\mathrm{chaperone\mhyphen of?
 \red{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}{\sbla{4}{\ell}}
 if $|\vv|\ne|\vvp|$ and $|\vv|+1\ne|\vvp|$
 
-\red{\sdchaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\sapp{\chacfk{w}::\ks}{\sigma}{f}{\vvp}}
+\red{\schaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\sapp{\chacfk{w}::\ks}{\sigma}{f}{\vvp}}
 
-\red{\sval{\chacfk{w}::\ks}{\sigma}{\vv}}{\sdchao{\ks}{\sigma}{w}{\vv}{\ell}}
+\red{\sval{\chacfk{w}::\ks}{\sigma}{\vv}}{\schao{\ks}{\sigma}{w}{\vv}{\ell}}
 
-\red{\sdchao{\ks}{\sigma}{w}{\vv}{\ell}}{\app{\chacrk{\vv}::\ks}{\sigma}{w}{\vv}}
+\red{\schao{\ks}{\sigma}{w}{\vv}{\ell}}{\app{\chacrk{\vv}::\ks}{\sigma}{w}{\vv}}
 
 
 
@@ -858,7 +788,7 @@ bind(\sigma,\rho,x,v)=(\sigma',\rho') where \sigma'=\sigma[a->v], \rho'=\rho[x->
 The reduction relation is defined as the union of each given relation.
 [show it doesn't get stuck somewhere else?]
 \begin{itemize}
-\item If $I(p)\longrightarrow^{*}\sval{\langle\rangle}{\sigma}{\mathbf{v}}$, the program evaluates to the values $\mathbf{v}$ which we write as $p\Downarrow\mathbf{v}$.
+\item If $I(p)\longrightarrow^{*}\sval{\langle\rangle}{\sigma}{\vv}$, the program evaluates to the values $\vv$ which we write as $p\Downarrow\vv$.
 \item If $I(p)\longrightarrow^{*}\serr{\langle\gamma_1,\dots,\gamma_n\rangle}{\sigma}{b}$, $p$ the program results in an error with blame $b$ and we write $p\Uparrow b$.
 \item If, for all $\varsigma$ such that $I(p)\longrightarrow^{*}\varsigma$, there exists $\varsigma'$ such that $\varsigma\longrightarrow\varsigma'$, then $p$ diverges and we write $p\Uparrow$.
 \end{itemize}
@@ -1004,7 +934,7 @@ Additionally, a sound discharge preserves an equivalence of the resultant values
 \begin{definition}
 A program transformation $F$ \emph{preserves meaning} of a program $p$ when it holds that
 \begin{itemize}
-\item if $p\Downarrow\mathbf{v}$, then $F(p)\Downarrow\mathbf{v'}$ where $\mathrm{chaperone\mhyphen of?}(\mathbf{v},\mathbf{v'})$,
+\item if $p\Downarrow\vv$, then $F(p)\Downarrow\mathbf{v'}$ where $\mathrm{chaperone\mhyphen of?}(\vv,\vvp)$,
 \item if $p\Uparrow b$, then $F(p)\Uparrow b$, and
 \item if $p\Uparrow$, then $F(p)\Uparrow$.
 \end{itemize}
@@ -1071,7 +1001,7 @@ If a chaperone-installment site labelled $\ell$ is demotable with respect to a p
 
 That is,
 \begin{itemize}
-\item if $p\Downarrow\mathbf{v}$, then $E_\ell(p)\not\Uparrow b$ for any $b$,
+\item if $p\Downarrow\vv$, then $E_\ell(p)\not\Uparrow b$ for any $b$,
 \item if $p\Uparrow b$, then $E_\ell(p)\not\Uparrow b'$ for $b\ne b'$, and
 \item if $p\Uparrow$, then $E_\ell(p)\not\Uparrow b$ for any $b$.
 \end{itemize}
@@ -1194,11 +1124,11 @@ We follow Might's strategy of lifting abstractions component-, element- member-,
 
 \begin{verbatim}
 \Sigma_e(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\rho},e)
-\Sigma_a(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{f},\hat{\mathbf{v}})
-\Sigma_v(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\mathbf{v}})
+\Sigma_a(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{f},\hat{\vv})
+\Sigma_v(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\vv})
 \Sigma_!(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},b)
-\Sigma_0(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{f},\hat{w},\hat{\mathbf{v}})
-\Sigma_1(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{w},\hat{\mathbf{v}})
+\Sigma_0(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{f},\hat{w},\hat{\vv})
+\Sigma_1(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{w},\hat{\vv})
 
 \hat{\sigma}\in \hat{Addr}\mapsto powerset(\hat{V})
 \hat{\rho}\in Var\mapsto\hat{Addr}
