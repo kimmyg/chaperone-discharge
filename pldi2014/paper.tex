@@ -39,7 +39,7 @@
 \titlebanner{banner above paper title}        % These are ignored unless
 \preprintfooter{short description of paper}   % 'preprint' option specified.
 
-\title{Preventing Dynamic Installation of Higher-Order Contracts Statically}
+\title{Static Discharge of Dynamic, Higher-Order Contracts}
 %\subtitle{Subtitle Text, if any}
 
 %\authorinfo{Kimball Germane\and Matthew Might}
@@ -63,7 +63,7 @@
 % figure out a way to present it as product and not sum of contributions
 % take out church factorial fluff
 % write related work section
-% 
+% make it clear that we can prevent the DYNAMIC installation of contracts
 
 
 \maketitle
@@ -382,9 +382,6 @@ Every term is annotated with a unique label $\ell$ to keep otherwise identical t
 \newcommand{\lete}[3]{(\mathbf{let}\,((#1)\,#2)\,#3)}
 \newcommand{\ife}[3]{(\mathbf{if}\,#1\,#2\,#3)}
 
-\newcommand{\ande}[2]{(\mathrm{and}\,#1\,#2)}
-\newcommand{\ore}[2]{(\mathrm{or}\,#1\,#2)}
-
 \newcommand{\true}[0]{\mathrm{\#t}}
 \newcommand{\false}[0]{\mathrm{\#f}}
 
@@ -400,7 +397,7 @@ Every term is annotated with a unique label $\ell$ to keep otherwise identical t
 \stxclass{e}{Exp}{\scheme|(let ((x ...) c) e)|}{let}\\
 \stxclasscont{\scheme|(if ae e e)|}{if}\\
 \stxclasscont{\scheme|ae|}{}\\
-\stxclass{\mathit{ae}}{AExp}{$\mathit{lam}$ $|$ $p$ $|$ $x$ $|$ $i$ $|$ $b$}{atomic expressions}\\
+\stxclass{\mathit{ae}}{AExp}{$\mathit{lam}$ $|$ $p$ $|$ $x$ $|$ $n$ $|$ $b$}{atomic expressions}\\
 \stxclass{\mathit{lam}}{Lam}{\scheme|(LAMBDA (x ...) e)|}{lambda terms}\\
 \stxclass{p}{Prim}{\scheme|impersonate-operator| $|$ \scheme|<| $|$ \scheme|>| $|$ \scheme|=| $|$ \scheme|+| $|$ \scheme|-|}{primitives}\\
 \stxclasscont{\scheme|chaperone-operator| $|$ \scheme|values| $|$ \scheme|raise|}{}\\
@@ -454,6 +451,8 @@ A program is a term in the grammar with no free variables and in which all ident
 %           (error)))) (blame - guard)
 
 \newcommand{\A}[3]{\mathcal{A}(#1,#2,#3)}
+\newcommand{\arity}[1]{\ensuremath{\mathrm{arity}(#1)}}
+
 
 \newcommand{\dynbla}[1]{\mathrm{dynamic\mhyphen blame}(#1)}
 
@@ -531,13 +530,14 @@ We use a star ($^*$) for the same purpose when boldface is not available; e.g., 
 \stxclasscont{\chacwk{f}{\vv}}{chaperone negative}\\
 \stxclasscont{\chacfk{w}}{chaperone function}\\
 \stxclasscont{\chacrk{\vv}}{chaperone positive}\\
-\stxclass{v}{Val}{$f\,|\,i\,|\,b$}{values}\\
+\stxclass{v}{Val}{$f\,|\,n\,|\,b$}{values}\\
 \stxclass{\sigma}{Store}{\funarr{Addr}{Val}}{stores}\\
 \stxclass{\rho}{Env}{\funarr{Var}{Addr}}{environments}\\
 \stxclass{f,w}{Op}{\nttwo{clos}{\mathit{lam}}{\rho}}{closures}\\
 \stxclasscont{\ntthr{imp}{\ell}{f}{w}}{impersonators}\\
 \stxclasscont{\ntthr{chap}{\ell}{f}{w}}{chaperones}\\
-\stxclasscont{$p$}{primitives}
+\stxclasscont{$p$}{primitives}\\
+\stxclass{\alpha}{Addr}{an infinite set of addresses}{}
 \end{tabular}
 
 \caption{Abstract machine state space for \chapcalc}
@@ -599,10 +599,16 @@ In the following reductions, $\mathcal{A}$ is defined by
 \begin{tabular}{ r l l }
 \Aeval{\mathit{lam}} &= \clo{\mathit{lam}}{\rho} & $\lambda$-terms\\
 \Aeval{x}            &= $\sigma(\rho(x))$ & variables\\
-\Aeval{i}            &= $i$ & integers\\
+\Aeval{n}            &= $n$ & integers\\
 \Aeval{t}            &= $t$ & booleans\\
 \Aeval{p}            &= $p$ & primitives\\
 \end{tabular}
+
+$\arity{\clo{\lame{x_1\,\dots\,x_n}{e}}{\rho}}=\{n\}$
+
+$\arity{\cha{f}{w}}=\arity{f}$
+
+$\arity{\mathit{values}}=\{0,1,2,\dots\}$
 
 \subsubsection{application}
 
@@ -747,34 +753,51 @@ if $|\vv|=|\vvp|$ but $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$ does not hold
 \red{\sval{\chacrk{\vv}::\ks}{\sigma}{\vvp}}{\sbla{6}{\ell}}
 if $|\vv|\ne|\vvp|$
 
-\begin{verbatim}
-+ L <n0,n1> = [n0+n1]
-+ L <n0,n1> -> uparrow if not integer? n0 or not integer? n1 (type)
-+ L <n0,...,nn> -> uparrow (arity)
+\subsubsection{primitive}
+\red{\sapp{\ks}{\sigma}{p}{\vv}}{\sval{\ks}{\sigma}{\delta(p,\vv)}}
+if $\delta(p,\vv)=\vvp$ for some $\vvp$.
 
-< L <n0,n1> = #t if <n0 < n1>
-< L <n0,n1> = #f if not <n0 < n1>
-type
-arity
-+ 2 integer integer ->
-> 2 integer integer -> bool
-< 2 integer integer -> bool
-= 2 integer integer -> bool
-not 1 bool -> bool
-values 0+ any ... -> any ...
-chaperone-operator 2 operator operator -> operator
-  and arity of operators identical
-chaperone-operator L <f0,f1>
-if arity(f1) includes arity(f0)
-  chap(L,f0,f1)
-impersonate-operator 2 ...
+\red{\sapp{\ks}{\sigma}{p}{\vv}}{\serr{\ks}{\sigma}{\delta(p,\vv)}}
+if $\delta(p,\vv)=b$ for some $b$.
 
-integer? 1 any -> bool
-boolean? 1 any -> bool
-operator? 1 any -> bool
+[DEFINE BLAME!]
 
-raise 0+ any ... -> uparrow
-\end{verbatim}
+The label of the call site is passed implicitly to each primitive.
+The \scheme{impersonate-operator} and \scheme{chaperone-operator} primitives imbue the newly-created value with it.
+Otherwise, it is used to blame the context.
+
+\newcommand{\primone}[4]{$\delta$(#1,$\langle #2 \rangle$) &= $\langle #3 \rangle$ & #4}
+\newcommand{\primtwo}[5]{$\delta$(#1,$\langle #2, #3 \rangle$) &= $\langle #4 \rangle$ & #5}
+\newcommand{\primtwe}[4]{$\delta$(#1,$\langle #2, #3 \rangle$) &= $\ell$ & #4}
+\newcommand{\primfou}[7]{$\delta$(#1,$\langle #2, #3, #4, #5\rangle$) &= $\langle #6 \rangle$ & #7}
+\newcommand{\primfoe}[6]{$\delta$(#1,$\langle #2, #3, #4, #5\rangle$) &= $\ell$ & #6}
+\begin{tabular}{ r l l }
+\primtwo{\scheme|<|}{n_1}{n_2}{\true}{if $n_1 < n_2$}\\
+\primtwo{\scheme|<|}{n_1}{n_2}{\false}{otherwise}\\
+\primtwo{\scheme|>|}{n_1}{n_2}{\true}{if $n_1 > n_2$}\\
+\primtwo{\scheme|>|}{n_1}{n_2}{\false}{otherwise}\\
+\primtwo{\scheme|=|}{n_1}{n_2}{\true}{if $n_1 = n_2$}\\
+\primtwo{\scheme|=|}{n_1}{n_2}{\false}{otherwise}\\
+\primtwo{\scheme|+|}{n_1}{n_2}{\lceil n_1 + n_2\rceil}{}\\
+\primtwo{\scheme|-|}{n_1}{n_2}{\lceil n_1 - n_2\rceil}{}\\
+\primtwo{\scheme|impersonate-operator|}{f_1}{f_2}{\imp{f_1}{f_2}}{if $\arity{f_2}\supseteq\arity{f_1}$}\\
+\primtwe{\scheme|impersonate-operator|}{f_1}{f_2}{otherwise}\\
+\primtwo{\scheme|chaperone-operator|}{f_1}{f_2}{\cha{f_1}{f_2}}{if $\arity{f_2}\supseteq\arity{f_1}$}\\
+\primtwe{\scheme|chaperone-operator|}{f_1}{f_2}{otherwise}\\
+\primfou{\scheme|values|}{v_1}{v_2}{\dots}{v_n}{v_1,v_2,\dots,v_n}{}\\
+\primfoe{\scheme|raise|}{v_1}{v_2}{\dots}{v_n}{}\\
+\primone{\scheme|not|}{v}{\true}{if $v = \false$}\\
+\primone{\scheme|not|}{v}{\false}{otherwise}\\
+\primone{\scheme|operator?|}{f}{\true}{}\\
+\primone{\scheme|operator?|}{v}{\false}{for $v$ not an operator}\\
+\primone{\scheme|integer?|}{n}{\true}{}\\
+\primone{\scheme|integer?|}{v}{\false}{for $v$ not an integer}\\
+\primone{\scheme|boolean?|}{t}{\true}{}\\
+\primone{\scheme|boolean?|}{v}{\false}{for $v$ not a boolean}\\
+\end{tabular}
+
+The class $n$ of variables indicate integers, the class $f$ operators, the class $t$ booleans, and the class $v$ a union of all value types.
+If a primitive is applied to a different number or type of arguments than shown, its evaluation raises an error.
 
 The \scheme{values} primitive is distinct.
 It takes any number of arguments and returns that same number.
@@ -841,7 +864,7 @@ This immediately raises two issues.
 First, multiple chaperone installations may occur at a given application site during program execution, so we cannot, in all circumstances, selectively prevent the creation of a single chaperone.
 Second, chaperone installation may not be the only operation performed by an application site.
 We address both by analyzing application sites and then only those in which \scheme{chaperone-operator} is the only operator, which we refer to as \emph{chaperone-installation sites}.
-The conditions to discharge a given site are stronger than that of a chaperone installed at that site: instead of demonstrating that a single chaperone satisfies a property, we must demonstrate that every chaperone created at that site satisfies that property \emph{and} that in every chaperone installation at that site, the chaperoning procedure has the same arity as the to-be-chaperoned procedure.
+The conditions to discharge a given site are stronger than that of a chaperone installed at that site: instead of demonstrating that a single chaperone satisfies a property, we must demonstrate that every chaperone created at that site satisfies that property \emph{and} that in every chaperone installation at that site, the chaperoning procedure has the same arity [LOOK AT THIS] as the to-be-chaperoned procedure.
 
 When put in these terms, it is clear that chaperone installment at a particular site can be discharged only if it meets these conditions for every possible execution.
 These conditions seem onerous.
@@ -1041,6 +1064,15 @@ A chaperone-installment site with label $\ell$ is dischargeable if all chaperone
 
 \section{Static Analysis}
 
+We base our notion of dependence on the principle of dependence of Harrison~\cite{harrison1989interprocedural} which, roughly, is that procedures active at the point of resource access are \emph{dependent} on that resource.
+This principle assumes the absence of tail-call optimization; a procedure depends on the resource even if its activation frame was subsumed by a tail call.
+We reverse the relationship before applying it to chaperone installation and error assertion: the creation of a chaperone or assertion of an error depends on all procedures active at that point.
+Our calculus ``optimizes'' tail calls and we consider procedures subsumed to be dependent also.
+However, we are concerned only with which chaperone guards are dependent on one of these things, and they leave evidence of their invocation on the stack--even in the presence of proper tail-call optimization--until their continuation is accessed.
+
+We use pushdown analysis to build an approximation of the dependency relations.
+We use termination analysis (
+
 We use two static analysis techniques in tandem to determine whether chaperone-installment sites in \chapcalc\ programs are dischargeable or demotable.
 
 First, we use abstract interpretation via introspective pushdown analysis~\cite{earl2012introspective} to soundly approximate the both the error and creation dependence relations.
@@ -1122,13 +1154,87 @@ A domain which distinguishes values coincident with the edges of the contract wo
 
 We follow Might's strategy of lifting abstractions component-, element- member-, and point-wise across the structure of machine states~\cite{van2010abstracting}.
 
+\newcommand{\astxclass}[4]{$#1\in\widehat{\mathbf{#2}}$ &::=& #3 & #4}
+%\newcommand{\stxclasscont}[2]{&$|$& #1 & #2}
+\newcommand{\aks}[0]{\hat{\gamma}^*}
+%\newcommand{\vv}[0]{\mathbf{v}}
+%\newcommand{\vvp}[0]{\mathbf{v'}}
+%\newcommand{\sexp}[4]{\mathbf{eval}(#1,#2,#3,#4)}
+%\newcommand{\sval}[3]{\mathbf{value}(#1,#2,#3)}
+%\newcommand{\sapp}[4]{\mathbf{apply}(#1,#2,\ell,#3,#4)}
+%\newcommand{\scha}[6]{\Sigma_d(#1,#2,#3,#4,#5,#6)}
+%\newcommand{\simpz}[6]{\mathbf{imp_0}(#1,#2,#3,#4,#5,#6)}
+%\newcommand{\simpo}[5]{\mathbf{imp_1}(#1,#2,#3,#4,#5)}
+%\newcommand{\schaz}[6]{\mathbf{chap_0}(#1,#2,#3,#4,#5,#6)}
+%\newcommand{\schao}[5]{\mathbf{chap_1}(#1,#2,#3,#4,#5)}
+%\newcommand{\serr}[3]{\mathbf{error}(#1,#2,#3)}
+%\newcommand{\sbla}[2]{\mathrm{blame}_{#1}(#2)}
+%\newcommand{\app}[4]{\mathrm{apply}(#1,#2,#3,#4)}
+%\newcommand{\red}[2]{\begin{align*}& #1\\\rr\, & #2\end{align*}}
+
+%\newcommand{\bind}[4]{\mathrm{bind}(#1,#2,#3,#4)}
+
+%\newcommand{\clo}[2]{\nttwo{clos}{#1}{#2}}
+%\newcommand{\imp}[2]{\ntthr{imp}{\ell}{#1}{#2}}
+%\newcommand{\cha}[2]{\ntthr{chap}{\ell}{#1}{#2}}
+
+%\newcommand{\letk}[3]{\mathrm{let}_\kappa(#1,#2,#3)}
+
+%\newcommand{\impcwk}[2]{\ntthr{imp\mhyphen neg}{\ell}{#1}{#2}}
+%\newcommand{\impcfk}[1]{\nttwo{imp\mhyphen fun}{\ell}{#1}}
+%\newcommand{\impcrk}[1]{\nttwo{imp\mhyphen pos}{\ell}{#1}}
+
+%\newcommand{\chacwk}[2]{\ntthr{chap\mhyphen neg}{\ell}{#1}{#2}}
+%\newcommand{\chacfk}[1]{\nttwo{chap\mhyphen fun}{\ell}{#1}}
+%\newcommand{\chacrk}[1]{\nttwo{chap\mhyphen pos}{\ell}{#1}}
+
+%\newcommand{\rr}{\longrightarrow}
+%\newcommand{\rrs}{\longrightarrow^{*}}
+
+\newcommand{\af}[0]{\ensuremath{\hat{f}}}
+\newcommand{\aw}[0]{\ensuremath{\hat{w}}}
+\newcommand{\arho}[0]{\ensuremath{\hat{\rho}}}
+\newcommand{\asigma}[0]{\ensuremath{\hat{\sigma}}}
+
+\begin{figure}
+\label{fig:abstract-states}
+
+\begin{tabular}{ r r l l }
+\astxclass{\varsigma}{State}{$\sexp{\aks}{\asigma}{\arho}{e}$}{evaluation}\\
+\stxclasscont{$\sapp{\aks}{\asigma}{f}{\vv}$}{apply}\\
+\stxclasscont{$\sval{\aks}{\asigma}{\vv}$}{value}\\
+\stxclasscont{$\serr{\aks}{\asigma}{b}$}{error}\\
+\stxclasscont{$\simpz{\aks}{\asigma}{\ell}{\af}{\aw}{\vv}$}{imp0}\\
+\stxclasscont{$\simpo{\aks}{\asigma}{\ell}{\aw}{\vv}$}{imp1}\\
+\stxclasscont{$\schaz{\aks}{\asigma}{\ell}{\af}{\aw}{\vv}$}{chap0}\\
+\stxclasscont{$\schao{\aks}{\asigma}{\ell}{\aw}{\vv}$}{chap1}\\
+\stxclass{\gamma}{Frame}{\ntthr{let}{\vx}{\arho}{e}}{let}\\
+\stxclasscont{\impcwk{\af}{\vv}}{impersonator negative}\\
+\stxclasscont{\impcfk{\aw}}{impersonator function}\\
+\stxclasscont{\impcrk{\vv}}{impersonator positive}\\
+\stxclasscont{\chacwk{\af}{\vv}}{chaperone negative}\\
+\stxclasscont{\chacfk{\aw}}{chaperone function}\\
+\stxclasscont{\chacrk{\vv}}{chaperone positive}\\
+\stxclass{v}{Val}{$\af\,|\,n\,|\,b$}{values}\\
+\stxclass{\sigma}{Store}{\funarr{Addr}{P(Val)}}{stores}\\
+\stxclass{\rho}{Env}{\funarr{Var}{\widehat{Addr}}}{environments}\\
+\stxclass{\af,\aw}{Op}{\nttwo{clos}{\mathit{lam}}{\arho}}{closures}\\
+\stxclasscont{\ntthr{imp}{\ell}{\af}{\aw}}{impersonators}\\
+\stxclasscont{\ntthr{chap}{\ell}{\af}{\aw}}{chaperones}\\
+\stxclasscont{$p$}{primitives}\\
+\astxclass{\alpha}{Addr}{a \emph{finite} set of addresses}{}
+\end{tabular}
+
+\caption{Abstract abstract machine state space for \chapcalc}
+\end{figure}
+
 \begin{verbatim}
 \Sigma_e(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\rho},e)
-\Sigma_a(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{f},\hat{\vv})
+\Sigma_a(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\af,\hat{\vv})
 \Sigma_v(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\vv})
 \Sigma_!(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},b)
-\Sigma_0(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{f},\hat{w},\hat{\vv})
-\Sigma_1(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\hat{w},\hat{\vv})
+\Sigma_0(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\af,\aw,\hat{\vv})
+\Sigma_1(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\aw,\hat{\vv})
 
 \hat{\sigma}\in \hat{Addr}\mapsto powerset(\hat{V})
 \hat{\rho}\in Var\mapsto\hat{Addr}
