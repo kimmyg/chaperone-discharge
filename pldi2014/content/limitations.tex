@@ -1,0 +1,48 @@
+\section{Limitations}
+
+Our calculus has an impoverished value domain, so our termination judgments of guards are nearly complete in practice as a result of only a simple flow analysis.
+(Because, in practice, guards are not recursive themselves or any procedures in the call graph. Essentially, call graphs for guard procedures are trees.)
+Contracts on compound data complicate matters because the data may be defined inductively which makes recursive checking natural.
+We can accomodate this in particular by integrating size-change analysis~\cite{lee2001size} into our abstract interpretation.
+This would be novel as higher-order size-change analysis~\cite{sereni2007termination} has heretofore been applied only to variants of $k$-CFA~\cite{shivers1991control}.
+
+\scheme{app-values} increases the expressiveness of the language.
+(We do not have to specify the number of arguments to a function statically.)
+The structure of a list is recursive.
+We can untie the recursive definition by directing through the store; we took this approach with environments.
+We could look into this, but that means the length of the list could vary.
+That could \emph{really} destroy precision, but we need to investigate it further.
+
+\emph{rest values} increase the expressiveness of the language. They are very related to \scheme{app-values}.
+\scheme{chap-op} as a primitive (as opposed to a form) increases the expressiveness of the language.
+
+Our analysis applies equally well if we extend the language with more referentially transparent primitives or macro-expressible constructs such as \scheme{and} and \scheme{or} forms.
+We can even add an error-catching facility but we must be careful in our analysis.
+
+In Racket, the \scheme{chaperone-of?} relation is accessible through a predicate procedure.
+However, its presence in Racket has different implications than its introduction to \chapcalc, which can use it to determine whether two procedures are intensionally equivalent.
+(In Racket, its use in that fashion is restricted to determining whether two references indicate the same procedure.)
+
+Chaperones are intended to be treated like the original value.
+% box?, procedure?, etc. will respond the same way
+% they evaluate equal? to the values they wrap, but not eq?
+Procedure chaperones are considered to have the same arity of the procedures they wrap.
+The \scheme{chaperone?} predicate is designated as the single way to detect chaperones at runtime, though its use is discouraged.
+
+\subsection{Handling \emph{handle}}
+
+Exception handlers prevent certain errors from escaping a particular dynamic extent.
+Consider the program
+\begin{schemedisplay}
+(handle
+  (chap-op + (raise) (raise))
+  -)
+\end{schemedisplay}
+wherein an error is always raised and the handler always triggered.
+Even though an exception never escapes the dynamic extent of the \scheme{handle} expression, replacing the \scheme{chap-op} application with its first argument results in a different program. 
+This means that we must consider whether a \scheme{chap-op} application ever raises an error, and not simply if that error escapes a delimited extent.
+% being able to catch errors means that errors can change the meaning of a program arbitrarily--even if it results in a value.
+% this means that we need to preserve errors
+% chaperone-of? within the language can change the behavior, right? if it was a chaperone before, removing the chaperone makes it still chaperone-of? it's chaperone? that makes it possible to detect changes, but that is discouraged, and we will leave it out of our language.
+
+chaperone and impersonator properties

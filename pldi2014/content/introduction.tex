@@ -1,0 +1,90 @@
+\section{Introduction}
+
+% what is the problem?
+Higher-order behavioral contracts can take inordinate time and space to enforce.
+
+%\newcommand{\mllam}[3]{\lambda #1:\mathtt{#2}.\,#3}
+%\newcommand{\mlif}[3]{\mathtt{if}\,#1\,\mathtt{then}\,#2\,\mathtt{else}\,#3}
+
+%Consider, for instance, the program
+%\[
+%\mathtt{even?}=\mllam{n}{Int}{\mlif{n=0}{\mathtt{true}}{5}}\\
+%\lambda n:\mathtt{Int}.if n=0 then true else odd? (n - 1)\\
+%even?=\lambda n:Int.if n=0 then true else odd? (n - 1)
+%\]
+%But we expect many contract projections to be benign.
+
+Consider, for instance, the program
+\begin{schemedisplay}
+(define/contract (fact n a)
+  (nonnegative-integer/c positive-integer/c . -> . positive-integer/c)
+  (if (= n 0)
+      a
+      (fact (- n 1) (* n a))))
+\end{schemedisplay}
+which attaches dynamic domain and range contracts to the tail-recursive factorial.
+This contracted procedure behaves as if it were written
+\begin{schemedisplay}
+(define (fact n a)
+  (positive-integer/c
+   ((LAMBDA (n a)
+      (if (= n 0)
+          a
+          (fact (- n 1) (* n a))))
+    (nonnegative-integer/c n)
+    (positive-integer/c a))))
+\end{schemedisplay}
+where \scheme{positive-integer/c} and \scheme{nonnegative-integer/c} are procedures which raise an error if their argument does not belong to the domain reflected by the procedure's name.
+Written in this way, it is apparent that \scheme{fac} is not tail-recursive.
+Instead, the context grows with every recursive call so that \scheme{(fact 6 1)} reduces as
+\begin{schemedisplay}
+(fact 6 1)
+(positive-integer/c (fact 5 6))
+(positive-integer/c (positive-integer/c (fact 4 30)))
+...
+(positive-integer/c ... (positive-integer/c (fact 0 720)))
+(positive-integer/c ... (positive-integer/c 720))
+\end{schemedisplay}
+whence the result will be validated six times---and \scheme{n} times for \scheme{(fact n 1)}.
+The attachment of these contracts has transformed a constant-space algorithm into a linear-space one and, while the time complexity hasn't suffered asymptotically, the accumulated checks represent a real (and, in this case, unnecessary) cost.
+Thus, a simple contract ascription can upset our performance expectations for even simple procedures.
+
+As contract specifications become more elaborate, they become more susceptible to error.
+In contract systems, such as Racket's~\cite{plt-tr1}, which allow arbitrary predicate procedures written in the source language itself to serve as specifications, this error is effected by the programmer.
+It is only natural, then, to contract these procedures as well, an act which aides error diagnosis but compounds the run-time cost of contracts.
+In these systems, execution time of the program proper can be dwarfed by that of the enforcement of its specification (in one case accounting for 96\% of total execution time) \cite{strickland2012chaperones}.
+
+The moderation of these costs has been studied extensively.
+Herman et al.~\cite{herman2010space} observed the potential accumulation of casts in the blame calculus---similar in principle to the accumulation of guards by our contracted \scheme{fact} procedure---and applied the coercion calculus of Henglein~\cite{henglein1994dynamic} to compact them.
+Siek and Wadler~\cite{siek2010threesomes} consider the same problem and apply their own solution of \emph{threesomes}.
+Siek et al.~\cite{siek2006gradual} explicate type systems which allow \emph{gradual typing} in which they provide a low-cost path from dynamically- to statically-checked invariants.
+Flanagan and Knowles~\cite{flanagan2006hybrid} introduce \emph{hybrid type checking} in which static analysis is used to establish contract compliance statically where possible and insert dynamic checks where not.
+%Using this final approach, a disciplined programmer enjoys the early safety guarantees and performance characteristics of statically-verified code or suffers the cost of belated error detection of dynamically-checked specifications.
+
+Unfortunately, modular development can impede these analyses because the greatest amount of knowledge a module can have about its imports \emph{is} their behavioral contract.\footnote{Indeed, it can be less than this, as when the behavioral specification is not codified entirely within the program.}
+For example, recognizing that contracts constitute total formal knowledge, Tobin-Hochstadt and Van Horn \cite{tobin2012higher} conduct an intra-module analysis which identifies extra-module references with opaque values that satisfy their contract.
+% also, contracts are attached to values that flow across module boundaries.
+Nevertheless, static analyses typically perform best when given whole programs.
+For instance, the whole-program ML compiler MLton \cite{weeks2006whole} is able to perform thorough inter-procedural and inter-modular analysis and effect significant program optimizations.
+We similarly expect the establishment of certain properties to become more accessible as code knowledge increases.
+%We expect the emergence of the possibility of more properties being proved about the code as more knowledge about it becomes available.
+
+We turn our attention to whole-program analysis of Racket \cite{plt-tr1}, a higher-order, dynamically-typed language, for the purpose of reducing the run-time burden of contracts.
+Racket programs are organized into modules which consist of import and export declarations, definitions, and expressions.
+Because Racket has rich facilities for syntactic extension, execution of code must be carefully controlled, especially since modules can be compiled separately \cite{flatt2002composable}.
+Therefore, the quickest way to a whole program is by \emph{demodularizing} pre-compiled modules into a whole program in the Racket bytecode language (which, contrary to its name, is a fairly rich higher-order language).
+At this level, contracts are manifest in terms of \emph{interposition} primitives.
+
+Recent advances in higher-order program analysis \cite{earl2012introspective} provide perfectly precise return flow and allow the form of the stack to be approximated at each control point in the program.
+The original purpose of this approximation was to provide an abstract garbage collector a conservative set of live frames.
+We repurpose this capability to analyze a notion of dependence similar to that of Might and Prabhu~\cite{might2009interprocedural} allowing us to judge the safe removal of dynamic contracts \emph{even when the installation of other contracts depends on them}.
+The expressiveness of Racket's contract language admits dynamic checks which diverge, so we must integrate a termination analysis based on Sereni's~\cite{sereni2007termination} that informs the discharge of dependently-installed contracts.
+
+We proceed as follows:
+We discuss interposition and its relationship to behavioral contracts in more depth in Section 2.
+We introduce the syntax and semantics of \chapcalc, a core calculus with facilities for interposing higher-order values, in Section 3.
+We present two theorems which establish the conditions for the safe removal or weakening of interposition in Section 4.
+We present a static analysis which can judge when these conditions hold in Section 5.
+We discuss the influence of parameters of the analysis on precision and performance in Section 6.
+We discuss some Racket language features which require more care to integrate with the present analysis in Section 7.
+We conclude by discussing the future application and direction of this work in Section 8.

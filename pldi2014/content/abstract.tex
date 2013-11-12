@@ -1,0 +1,24 @@
+\begin{abstract}
+Dynamic contract enforcement costs time and space to perform, sometimes dominating the execution cost of programs.
+Gathering the static information necessary to discharge them before program execution may shift the perspective of contracts to a lower level and force analyses to contend with the expediencies of implementation representations.
+In systems where contracts can be attached dynamically, as well as enforced, analyses must consider any influence a given contract has on program behavior as well as that of any contract attached or enforced by it, directly or indirectly.
+We present a static analysis which can extract and reason about these relationships to safely discharge contracts when they are transparent to the program.
+We analyze Racket to demonstrate the ability of the analysis to cope with dynamic contract dependencies and particular implementation constraints.
+Our analysis integrates the reasoning of dependency, blame, and termination which allows us to considerably reduce run-time contract prevalence.
+
+
+%Dynamic contract checks cost time and space to perform.
+%In languages where contracts may be attached dynamically, as well as checked, costs compound until they dominate actual program execution.
+%Gathering the static information necessary to discharge them \emph{before} program execution may shift the view of contracts to a lower level and force analyses to contend with implementation representations.
+%In languages where contracts may be attached dynamically, as well as checked, judging whether a contract can be safely discharged requires establishing that \emph{every} contract whose attachment or checking 
+%Dynamic contract checks---especially for higher-order values---take time and space to perform.
+%In practice, the cost of these checks can dominate the run-time cost of the executing the program.
+%It is therefore desirable to discharge them statically where possible.
+%However, implementation realities may mandate a shift in perspective as the view of contracts at low levels may vary.
+%is not as simple as determining when they directly influence the meaning of the program
+%underscores the reality that, in correct programs, contracts should be transparent
+%In systems where contracts may be attached to higher-order values dynamically and at the hand of another contracted value, the scope 
+%If 
+%We focus on demodularized Racket programs in which dynamic procedure contracts are expressed in terms of higher-order interposition and present an analysis for whole programs to statically detect and discharge benign contracts.
+%Utilizing a combination of introspective pushdown control-flow analysis and termination analysis, we demonstrate cases in which our analysis significantly decreases the run-time burden of specification enforcement.
+\end{abstract}

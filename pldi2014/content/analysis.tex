@@ -1,0 +1,334 @@
+\section{Static Analysis}
+
+We base our notion of dependence on the principle of dependence of Harrison~\cite{harrison1989interprocedural} which, roughly, is that procedures active at the point of resource access are \emph{dependent} on that resource.
+This principle assumes the absence of tail-call optimization; a procedure depends on the resource even if its activation frame was subsumed by a tail call.
+We reverse the relationship before applying it to chaperone installation and error assertion: the creation of a chaperone or assertion of an error depends on all procedures active at that point.
+Our calculus ``optimizes'' tail calls and we consider procedures subsumed to be dependent also.
+However, we are concerned only with which chaperone guards are dependent on one of these things, and they leave evidence of their invocation on the stack--even in the presence of proper tail-call optimization--until their continuation is accessed.
+
+We use pushdown analysis to build an approximation of the dependency relations.
+We use termination analysis (
+
+We use two static analysis techniques in tandem to determine whether chaperone-installment sites in \chapcalc\ programs are dischargeable or demotable.
+
+First, we use abstract interpretation via introspective pushdown analysis~\cite{earl2012introspective} to soundly approximate the both the error and creation dependence relations.
+Using the flow information available from this same analysis, we perform termination analysis on $lambda$-terms used in guard procedures.
+
+Because \chapcalc\ lacks any inductively-defined datatypes, the portion of the dynamic call graph rooted at a guard procedure is likely a tree.
+This is not so in Racket, where such datatypes are common.
+For instance, the \scheme{(listof integer?)} contract is checked recursively on the structure of the list.
+A more powerful analysis, such as a higher-order size-change termination analysis~\cite{sereni2007termination}, would be fruitful in that context but is unnecessary here.
+
+\subsection{A Worked Example}
+
+\begin{schemedisplay}
+(let ([(->) (λ (neg pos) (λ (f) (chap-op f (λ (v) (values pos (neg v))))))])
+  (let ([(any/c) (λ (x) x)])
+    (let ([(any) values])
+      (let ([(boolean/c) (λ (p)
+                           (if (not (boolean? p))
+                               (raise)
+                               p))])
+        (let ([(nat/c) (λ (n)
+                         (if (or (not (integer? n))
+                                 (< n 0))
+                             (raise)
+                             n))])
+          (let ([(church/c) (-> (-> any/c any)
+                                (-> any/c any))])
+            (letrec ([(n->f) ((-> nat/c church/c)
+                              (λ (n)
+                                (if (= n 0)
+                                    (λ (f) (λ (x) x))
+                                    (let ([(n-1) (n->f (- n 1))])
+                                      (λ (f)
+                                        (let ([(fn-1) (n-1 f)])
+                                          (λ (x) (f (fn-1 x)))))))))])
+              (let ([(f->n) ((-> church/c nat/c)
+                             (λ (c)
+                               ((c (λ (x) (+ x 1))) 0)))])
+                (let ([(c:*) ((-> church/c (-> church/c church/c))
+                              (λ (n1)
+                                (λ (n2)
+                                  (λ (f)
+                                    (n1 (n2 f))))))])
+                  (let ([(c:zero?) ((-> church/c boolean/c)
+                                    (λ (c) ((c (λ (x) #f)) #t)))])
+                    (let ([(c:sub1) ((-> church/c church/c)
+                                     (λ (n)
+                                       (λ (f)
+                                         (let ([(X) (λ (g) (λ (h) (h (g f))))])
+                                           (λ (x)
+                                             (((n X)
+                                               (λ (u) x))
+                                              (λ (u) u)))))))])
+                      (letrec ([(c:!) ((-> church/c church/c)
+                                       (λ (n)
+                                         (if (c:zero? n)
+                                             (λ (f) f)
+                                             ((c:* n) (c:! (c:sub1 n))))))])
+                        (f->n (c:! (n->f 6)))))))))))))))
+\end{schemedisplay}
+
+\subsubsection{Abstract Domains}
+
+Because higher-order contracts often refine domains, the choice of abstraction function can have significant ramifications for the precision of the analysis.
+For instance, an analysis of the program
+\begin{schemedisplay}
+(letrec ([(fact) (values (LAMBDA (n)
+                          (let ([test0 (= n 0)])
+                            (if test0
+                                1
+                                (let ([(n-1) (- n 1)])
+                                  (let ([(rec) (fact n-1)])
+                                    (* n rec)))))))])
+  (let ([(fact) (-> fact nonnegative? positive?)])
+    (fact 5)))
+\end{schemedisplay}
+using a singleton domain [?] for integers will fail to discharge the chaperone.
+A domain which distinguishes values coincident with the edges of the contract would be able to.
+
+We follow Might's strategy of lifting abstractions component-, element- member-, and point-wise across the structure of machine states~\cite{van2010abstracting}.
+
+\newcommand{\astxclass}[4]{$#1\in\widehat{\mathbf{#2}}$ &::=& #3 & #4}
+%\newcommand{\stxclasscont}[2]{&$|$& #1 & #2}
+\newcommand{\aks}[0]{\hat{\gamma}^*}
+%\newcommand{\vv}[0]{\mathbf{v}}
+%\newcommand{\vvp}[0]{\mathbf{v'}}
+%\newcommand{\sexp}[4]{\mathbf{eval}(#1,#2,#3,#4)}
+%\newcommand{\sval}[3]{\mathbf{value}(#1,#2,#3)}
+%\newcommand{\sapp}[4]{\mathbf{apply}(#1,#2,\ell,#3,#4)}
+%\newcommand{\scha}[6]{\Sigma_d(#1,#2,#3,#4,#5,#6)}
+%\newcommand{\simpz}[6]{\mathbf{imp_0}(#1,#2,#3,#4,#5,#6)}
+%\newcommand{\simpo}[5]{\mathbf{imp_1}(#1,#2,#3,#4,#5)}
+%\newcommand{\schaz}[6]{\mathbf{chap_0}(#1,#2,#3,#4,#5,#6)}
+%\newcommand{\schao}[5]{\mathbf{chap_1}(#1,#2,#3,#4,#5)}
+%\newcommand{\serr}[3]{\mathbf{error}(#1,#2,#3)}
+%\newcommand{\sbla}[2]{\mathrm{blame}_{#1}(#2)}
+%\newcommand{\app}[4]{\mathrm{apply}(#1,#2,#3,#4)}
+%\newcommand{\red}[2]{\begin{align*}& #1\\\rr\, & #2\end{align*}}
+
+%\newcommand{\bind}[4]{\mathrm{bind}(#1,#2,#3,#4)}
+
+%\newcommand{\clo}[2]{\nttwo{clos}{#1}{#2}}
+%\newcommand{\imp}[2]{\ntthr{imp}{\ell}{#1}{#2}}
+%\newcommand{\cha}[2]{\ntthr{chap}{\ell}{#1}{#2}}
+
+%\newcommand{\letk}[3]{\mathrm{let}_\kappa(#1,#2,#3)}
+
+%\newcommand{\impcwk}[2]{\ntthr{imp\mhyphen neg}{\ell}{#1}{#2}}
+%\newcommand{\impcfk}[1]{\nttwo{imp\mhyphen fun}{\ell}{#1}}
+%\newcommand{\impcrk}[1]{\nttwo{imp\mhyphen pos}{\ell}{#1}}
+
+%\newcommand{\chacwk}[2]{\ntthr{chap\mhyphen neg}{\ell}{#1}{#2}}
+%\newcommand{\chacfk}[1]{\nttwo{chap\mhyphen fun}{\ell}{#1}}
+%\newcommand{\chacrk}[1]{\nttwo{chap\mhyphen pos}{\ell}{#1}}
+
+%\newcommand{\rr}{\longrightarrow}
+%\newcommand{\rrs}{\longrightarrow^{*}}
+
+\newcommand{\aaa}[0]{\ensuremath{\hat{a}}}
+\newcommand{\af}[0]{\ensuremath{\hat{f}}}
+\newcommand{\aw}[0]{\ensuremath{\hat{w}}}
+\newcommand{\arho}[0]{\ensuremath{\hat{\rho}}}
+\newcommand{\asigma}[0]{\ensuremath{\hat{\sigma}}}
+
+
+\subsection{injection}
+
+A program is injected into a machine state with the function $\mathcal{I} : e\rightarrow\Sigma$ defined as $\mathcal{I}(p)=\sexp{\langle\rangle}{\perp}{\perp}{p}$.
+
+\subsection{$\mathcal{A}$}
+
+\newcommand{\Aaval}[1]{\ensuremath{\hat{\mathcal{A}}(\sigma,\rho,#1)}}
+
+In the following reductions, $\mathcal{A}$ is defined by
+
+
+
+\begin{tabular}{ r l l }
+\Aaval{\mathit{lam}} &= $\{\clo{\mathit{lam}}{\rho}\}$ & $\lambda$-terms\\
+\Aaval{x}            &= $\asigma(\arho(x))$ & variables\\
+\Aaval{n}            &= $\{\alpha(n)\}$ & integers\\
+\Aaval{t}            &= $\{\alpha(t)\}$ & booleans\\
+\Aaval{p}            &= $\{p\}$ & primitives\\
+\end{tabular}
+
+
+\subsection{bind}
+
+$bind(\sigma,\rho,x,v)=(\sigma',\rho')$ where $\sigma'=\sigma\sqcup[\aaa\rightarrow v]$, $\rho'=\rho[x\rightarrow \aaa]$, and $a=alloc(x)$.
+
+
+
+\begin{figure}
+\label{fig:abstract-states}
+
+\begin{tabular}{ r r l l }
+\astxclass{\varsigma}{State}{$\sexp{\aks}{\asigma}{\arho}{e}$}{evaluation}\\
+\stxclasscont{$\sapp{\aks}{\asigma}{f}{\vv}$}{apply}\\
+\stxclasscont{$\sval{\aks}{\asigma}{\vv}$}{value}\\
+\stxclasscont{$\serr{\aks}{\asigma}{b}$}{error}\\
+\stxclasscont{$\simpz{\aks}{\asigma}{\ell}{\af}{\aw}{\vv}$}{imp0}\\
+\stxclasscont{$\simpo{\aks}{\asigma}{\ell}{\aw}{\vv}$}{imp1}\\
+\stxclasscont{$\schaz{\aks}{\asigma}{\ell}{\af}{\aw}{\vv}$}{chap0}\\
+\stxclasscont{$\schao{\aks}{\asigma}{\ell}{\aw}{\vv}$}{chap1}\\
+\astxclass{\gamma}{Frame}{\ntthr{let}{\vx}{\arho}{e}}{let}\\
+\stxclasscont{\impcwk{\af}{\vv}}{impersonator negative}\\
+\stxclasscont{\impcfk{\aw}}{impersonator function}\\
+\stxclasscont{\impcrk{\vv}}{impersonator positive}\\
+\stxclasscont{\chacwk{\af}{\vv}}{chaperone negative}\\
+\stxclasscont{\chacfk{\aw}}{chaperone function}\\
+\stxclasscont{\chacrk{\vv}}{chaperone positive}\\
+\stxclass{v}{Val}{$\af\,|\,n\,|\,b$}{values}\\
+\astxclass{\sigma}{Store}{\funarr{Addr}{P(Val)}}{stores}\\
+\astxclass{\rho}{Env}{\funarr{Var}{\widehat{Addr}}}{environments}\\
+\astxclass{\af,\aw}{Op}{\nttwo{clos}{\mathit{lam}}{\arho}}{closures}\\
+\stxclasscont{\ntthr{imp}{\ell}{\aaa_{\ell,f}}{\aaa_{\ell,w}}}{impersonators}\\
+\stxclasscont{\ntthr{chap}{\ell}{\aaa_{\ell,f}}{\aaa_{\ell,w}}}{chaperones}\\
+\stxclasscont{$p$}{primitives}\\
+\astxclass{\aaa}{Addr}{a \emph{finite} set of addresses}{}
+\end{tabular}
+
+\caption{Abstract abstract machine state space for \chapcalc}
+\end{figure}
+
+\begin{verbatim}
+\Sigma_e(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\rho},e)
+\Sigma_a(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\af,\hat{\vv})
+\Sigma_v(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\hat{\vv})
+\Sigma_!(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},b)
+\Sigma_0(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\af,\aw,\hat{\vv})
+\Sigma_1(\langle\hat{\gamma},\dots\rangle,\hat{\sigma},\ell,\aw,\hat{\vv})
+
+\hat{\sigma}\in \hat{Addr}\mapsto powerset(\hat{V})
+\hat{\rho}\in Var\mapsto\hat{Addr}
+a\in\hat{Addr}
+f,w\in\hat{Op}=\hat{Clo}\cup\hat{Imp}\cup\hat{Prim}
+v\in\hat{V}=\hat{Op}\cup\hat{Bool}\cup\hat{Int}
+\end{verbatim}
+
+\begin{verbatim}
+A(\sigma,\rho,lam)={(lam,\rho)}
+A(\sigma,\rho,x)=\sigma(\rho(x))
+A(\sigma,\rho,i)={a(i)} (int)
+A(\sigma,\rho,t)={t} (bool)
+A(\sigma,\rho,p)={p} (prim)
+\end{verbatim}
+
+\begin{verbatim}
+bind(\sigma,\rho,x,v)=(\sigma',\rho') where \sigma'=\sigma[a->v], \rho'=\rho[x->a], and  a=alloc(x)
+\end{verbatim}
+
+The abstraction function $\alpha$ allows us to tune our analysis, much like the parameter $k$ in $k$-CFA.
+In general, the precision of the analysis increases as the abstract primitive domain underlying $\alpha$ coincides more closely with the particular contracts of the program.
+
+\subsubsection{application}
+
+\noindent
+\red{\sexp{\ks}{\sigma}{\rho}{\appe{\ae_f}{\ae_1\,\dots\,\ae_n}}}{\sapp{\ks}{\sigma}{f}{\langle v_1,\dots,v_n\rangle}}
+
+\noindent
+where $f\in\A{\sigma}{\rho}{\ae_f}$ and $v_i\in\A{\sigma}{\rho}{\ae_i}$ for $i=1,\dots,n$.
+
+Like closures, there is circularity in the definition of operators in \chapcalc, which induces an infinite space.
+$\mathrm{Lab}\times\mathrm{Operator}\times\mathrm{Operator}\subset\mathrm{operator}$
+We finitize the space by directing the components of a procedure impersonator or chaperone through the store.
+For allocation, we synthesize a variable for each component unique to each call site.
+\begin{verbatim}
+\ell_f
+\ell_w
+\end{verbatim}
+
+\subsection{Termination Analysis}
+
+We take most of this from \cite{sereni2007termination}.
+Sereni says an avenue of future work is to integrate with Might's gamma CFA.
+We could also integrate it with pushdown analysis?
+We need to build up the dynamic call graph in both analyses.
+The garbage collection is sound so we may be able to extend the TA to it (and hopefully for pushdown too).
+We don't care about the whole program; we only care about guard expressions.
+We use flow analysis to determine which lambda terms can flow to a guard.
+We do a flow analysis on all the free variables to see what could go where.
+We may be able to radically decrease the size of the call graph (in some cases) since we don't care about the whole program.
+
+The application of a chaperone guard will not diverge if the dynamic call graph rooted at that call is finite and does not contain any cycles.
+One of the conditions for a chaperone-installment site to be dischargeable is that the obviation of the pertinent guard applications does not change the behavior of the program.
+A guard can change the behavior of the program in one of two ways:
+First, it can signal a contract violation by means of an exception.
+The program halts and produces a blame assignment as a result.
+Clearly, if a guard would have thrown an error, and in so doing halted the program, the omission of the guard application changes the behavior---and meaning---of the program.
+Second, a guard can diverge.
+A chaperone-installment site can be discharged, then, if none of the guards there raise an error or diverge and the chaperone-installment sites of any dependent chaperones can also be discharged.
+
+But consider
+\begin{schemedisplay}
+(letrec ([(even? odd?) (values (LAMBDA (n)
+			         (let ([(test) (= n 0)])
+			           (if test
+			               #t
+			               (let ([n-1 (- n 1)])
+			                 (odd? n-1)))))
+			       (LAMBDA (n)
+			         (let ([(test) (= n 0)])
+			           (if test
+			               #f
+			               (let ([n-1 (- n 1)])
+			                 (even? n-1))))))])
+  (let ([f (chap-op (LAMBDA (n) (+ n 1))
+                               (LAMBDA (n)
+                                 (let ([(test) (even? n)])
+                                   (if test
+                                       (values (LAMBDA (n)
+                                                 (let ([(test) (odd? n)])
+                                                   (if test
+                                                       n
+                                                       (raise))))
+                                               n)
+                                       (raise)))))])
+    (f 2)))
+\end{schemedisplay}
+where we rely on our previous definition of \scheme{letrec}.
+Even though this program results in a value, our analysis cannot discharge the chaperone since the call graph rooted at each guard procedure has a cycle in it.
+It \emph{could} be done with appeal to the size-change termination property (adapted since the standard ordering on integers is not well-founded).
+Our analysis can demote the chaperone to an impersonator, though.
+
+%Consider the analysis of the program
+%\begin{schemedisplay}
+%(let ([(f) (chap-op (LAMBDA (x) x)
+%                               (LAMBDA (x)
+%                                 (let ([(test) (integer? x)])
+%                                   (if test
+%                                       x
+%                                       (raise)))))])
+%  (f 1))
+%\end{schemedisplay}
+%\begin{verbatim}
+%[]
+%[(let)]
+%[]
+%[(chap)]
+%\end{verbatim}              
+
+We first perform an introspective pushdown analysis on \chapcalc\ programs.
+The abstract semantics are fairly straightforward.
+Structural abstraction proceeds component-wise, point-wise, etc.
+Like Might and Van Horn~\cite{van2010abstracting} with closures, we must untie the recursive definition of chaperones and impersonators.
+We don't need it for the operators themselves since they are atomic expressions, and so cannot refer to themselves.
+We do it for the guard procedure by using the label of the site as the abstract address (or deriving it therefrom).
+
+We can build up the dependence relation by looking at the stack frames possible at each point of error or construction in the program.
+We determine construction points in the program by looking at value states (points of return) and examining the top frame at that point (to see if it's a chaperone construction frame).
+We take the union over all the sets of frames dependent on errors.
+We build the construction dependence relation also.
+We can then determine whether any of the installment site labels are safe to remove.
+But before that, we look at all operators that can flow to the guard of a chaperone.
+We are interested in whether they can diverge or not.
+With lambda terms, we look at whether they can diverge.
+With chaperones or impersonators, we look at whether any of the constituent operators can diverge.
+Primitives cannot diverge.
+
+We could look more precisely at dependence and distinguish between positive and negative guards more.
+We could find instances where the positive guard could be discharged with values. Then the negative guard could be discharged if the positive guard could be and it itself was well-behaved.
+Then a chaperone or impersonator with a guard values can be discharged.
+A chaperone-installment site can discharge the positive guard if none of the positive guards of its constituents are relied on by errors.

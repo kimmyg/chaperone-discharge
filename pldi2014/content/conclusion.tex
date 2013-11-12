@@ -1,0 +1,105 @@
+\section{Conclusion}
+
+Interposition primitives exist for more than functions in Racket: boxes, vectors, hash tables, continuation mark keys, etc.
+
+We omitted from \chapcalc a few primitives that exist in Racket that must be accounted for by our analysis.
+A call \scheme{(chaperone-of? f g)} determines whether \scheme{f} is \scheme{equal?} to \scheme{g} modulo chaperones.
+In other words, it determines whether \scheme{f} could be constructed from the parts of \scheme{g} and some chaperone installation.
+This primitive presents no problem for chaperone discharge as \scheme{(chaperone-of? f f)} always evaluates to \scheme{#t}.
+However, if a chaperone has been promoted to an impersonator and flows to the first argument position, the meaning of the program is changed, making the promotion unsound.
+If chaperone values that both otherwise can and cannot be promoted flow to this position, we cannot promote the chaperones.
+If only promoted or discharged chaperones flow to it, we can replace it with the corresponding \scheme{impersonator-of?} call.
+
+We also must contend with the \scheme{chaperone?} and \scheme{impersonator?} predicates. We can apply similar reasoning to integrate them into our original analysis.
+Given that Racket programmers are discouraged from using them, we don't expect them to regularly upend our analysis, but of course we must account for them.
+
+\section{Next}
+
+Not changing complexity, the time factor is less pernicious, but it is hard not to think of the waste effected by the application of a sequence of idempotent operators.
+
+Now the programmer wants to define his own contract predicates \scheme{even?} and \scheme{odd?}. Aware of the cost of contracts on tail-recursive functions, he opts against their use.
+\begin{schemedisplay}
+(define (even? n)
+  (if (= n 0)
+      #t
+      (odd? (- n 1))))
+      
+(define (odd? n)
+  (if (= n 1)
+      #t
+      (even? (- n 1))))
+\end{schemedisplay}
+for use in the definition
+\begin{schemedisplay}
+(define/contract (partial-succ n)
+  (odd? . -> . even?)
+  (+ n 1))
+\end{schemedisplay}
+which calculates the successor only for odd numbers.
+
+What is the result of the call \scheme{(partial-succ 0)}?
+The programmer hopes a contract violation will be detected with blame assigned to the caller.
+Instead, his program never halts.
+
+Now suppose the programmer recruits \scheme{odd?} and \scheme{even?} as contract predicates but, as happens with , fails to implement odd? correctly inst
+
+
+%It takes time to determine compliance of first-order values as first-order contracts can be arbitrary predicates.
+%Additionally, functions may ascribe contracts to their higher-order arguments which themselves do similarly, even recursively.
+
+%There isn't much a calculus can do to solve the time issue, especially in the face of dependent contracts.
+
+%Because contract compliance of higher-order values cannot be determined in general at ascription time, compliance checks must be attached to values to be performed later.
+%These attachments may accumulate, even changing the asymptotic space complexity of the program \cite{herman2010space} unless otherwise handled (again see \cite{herman2010space} or, for example, \cite{siek2010threesomes}).
+
+%This space issue is well-known and a few different approaches have been taken to deal with it:
+%Herman's coercion calculus, Wadler and Sieks' threesome calculus, the space-efficient contracts author
+%These do well to soundly preserve the asymptotic space complexity of the program and perhaps the time as well.
+
+
+
+
+%The motivation for this was to provide an abstract garbage collector a set of live frames, disregarding any stack structure latent in the control flow graph.
+
+%This description alone is enough to allow us to reason statically about features based on stack inspection, such as security checks [cite] and dynamic binding [cite].
+%We will use it to approximate blame on a misbehaving program.
+%After considering all possible sources of such blame, a straightforward analysis allows us to alter contract sites, shifting some of the dynamic burden to the static.
+
+% thus, in order to soundly discharge contracts from the original program, we must soundly discharge impersonators and chaperones.
+%The implementation of familiar language features is sometimes accomplished through alien constructs.
+% (Because the feature must be situated particularly within the already existing features of the language.)
+%Contracts are a common feature of dynamically-typed languages.
+%Higher-order contracts \cite{findler2002contracts} increase the domain of contracts to higher-order values.
+%Of course, codomain compliance of a higher-order contract cannot be decided at attachment time.
+%Instead, contracts are decomposed and positioned to intercept the arguments and results of application--the earliest possible time that contract compliance can be determined.
+%This \emph{de facto} wrapping of deferred contract checks imposes space and time overhead.
+%Wadler and his cronies and Herman and his cronies \cite{wadler2009well,herman2010space} show how the accumulation of wrappers can grow unbounded and offer various solutions to ameliorate this.
+%Determining contract compliance can make up a significant portion of reduction.
+
+%Higher-order contracts \cite{findler2002contracts} are now familiar constructs of languages but their implementation in Racket, which must cope with other language features--perhaps incidentally, is in terms of value wrappers.
+% \emph{impersonators} and \emph{chaperones}.
+%In Racket, data contracts are implemented at the bytecode level using interposition primitives--that is, values are wrapped and these wrappers intercept arguments and results.
+%Because functions are data in a higher-order language, special care has been given to enforcing safe and sound function contracts.
+%Of course, codomain contract compliance cannot be decided.
+%In consequence, codomain contract checks are deferred until the function actually delivers a value.
+
+%Nevertheless, analysis tools have access to more of certain kinds of information after compilation and so have the potential to prove more and different properties about programs.
+%Specifically, analysis tools for Racket have access to the whole program after module compilation through a \emph{demodularization} process.
+
+%Racket program lifecycle--the tipping of various types of information
+
+% a static analysis defines a class of program transformations
+% if the analysis is sound, the transformation is meaning-preserving
+% are these two preceding statements true?
+
+%This goal can be sought at each of the various stages of the Racket program lifecycle.
+%Initially, programs are organized into modules, and dynamic behavior can be gleaned from contract declarations at module boundaries.\cite{tobin2012higher}
+%Each module is compiled in isolation to bytecode; the bytecode compiler performs optimizations which rely on at most basic flow analysis are performed (constant-folding, 
+%``The bytecode compiler applies all standard optimizations, such as constant propagation, constant folding, inlining, and dead-code elimination.''
+%The journey to this stage discards high-level information and doesn't acquire much new information, so analysis here is probably fruitless.
+
+%Racket modules are compiled to bytecode. This
+
+%implementation of contracts within racket using interposition
+
+%talk about blame and the method Racket uses to assign blame--the compilation process, etc.

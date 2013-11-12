@@ -1,0 +1,132 @@
+\setspecialsymbol{LAMBDA0}{$\lambda_0$}
+\setspecialsymbol{LAMBDA1}{$\lambda_1$}
+\setspecialsymbol{LAMBDA2}{$\lambda_2$}
+
+\section{Interposition}
+
+The implementation of familiar language features is sometimes accomplished through alien constructs.
+In point of fact, behavioral contracts in Racket are manifest at run time by means of two interposition primitives: \emph{impersonators} and \emph{chaperones}.
+
+An impersonator wraps a value and intercepts operations on it, potentially redirecting the operations arbitrarily.
+In the case of higher-order values such as procedures, impersonators intercept arguments and can alter or replace them before passing them to the procedure they wrap.
+
+For instance, the expression
+\begin{schemedisplay}
+(impersonate-procedure (LAMBDA1 (x) (+ x 2)) (LAMBDA0 (x) (+ x 1)))
+\end{schemedisplay}
+creates a \emph{procedure impersonator value} which, when applied to a single argument, first applies the \scheme{LAMBDA0} closure (the \emph{impersonating} procedure) to that argument and applies the \scheme{LAMBDA1} closure (the \emph{impersonated} procedure) to the result.
+The net effect of applying this impersonator value, then, is to add three to the argument.
+
+The impersonating procedure \scheme{LAMBDA0} can include a procedure value in addition to its results which will be applied to the results of application of the impersonated procedure \scheme{LAMBDA1}.
+Modifying our previous example, the expression
+\begin{schemedisplay}
+(impersonate-procedure (LAMBDA1 (x) (+ x 2))
+                       (LAMBDA0 (x) (values (LAMBDA2 (x) (+ x 3)) (+ x 1))))
+\end{schemedisplay}
+creates a procedure impersonator value which behaves identically to the first example up to the return of the impersonated procedure, at which point the \scheme{LAMBDA2} closure is applied to its result.
+Operationally, applying the resultant procedure impersonator to an argument \scheme{y} is the same as \scheme{((LAMBDA2 (x) (+ x 3)) ((LAMBDA1 (x) (+ x 2)) ((LAMBDA0 (x) (+ x 1)) y)))}.
+%The net effect of applying this impersonator value is to add six---not three---to the argument.
+
+We will often refer to the impersonating procedure as the \emph{negative guard} as an error raised by it is construed as blaming the negative position (meaning that the context failed to satisfy the domain contract of the procedure); we refer to the additional value returned by the negative guard as the \emph{positive guard} for the same reason.
+In cases where a positive guard is provided, the wrapper analogy is apt as values must pass through an impersonator barrier at both entry to and exit from the procedure.
+
+Chaperones refine impersonators by trading behavioral freedom for reasonability~\cite{strickland2012chaperones}.
+Well-behaved procedure chaperones cannot alter intercepted arguments arbitrarily; they may only install chaperones on them.
+Chaperones share the ability of impersonators to perform side-effects.
+In particular, they retain the ability to raise exceptions, the mechanism by which contract violations are signalled.
+
+As an example of a realistic use of a chaperone, consider the factorial procedure for which a chaperone dynamically enforces the type of its argument and result\footnote{Of course, even without a chaperone, applying the factorial procedure to a non-numeric argument will provoke an error, but to a negative or non-integer, numeric argument will diverge. The chaperone here addresses both cases: it causes blame to be assigned at the procedure level, and encodes the specification sufficiently to avoid divergence.} expressed as
+\begin{schemedisplay}
+(chaperone-procedure
+ (letrec ([fact (LAMBDA (n)
+                  (if (= n 0)
+                      1
+                      (* n (fact (- n 1)))))])
+   fact)
+ (LAMBDA (n)
+   (if (and (integer? n) (GE n 0))
+       (values (LAMBDA (n)
+                 (if (and (integer? n) (GE n 1))
+                     n
+                     (raise result error ...)))
+               n)
+       (raise argument error ...))))
+\end{schemedisplay}
+The chaperoning procedure is only shallowly installed in that only the initial argument and final result of a factorial application are scrutinized.
+This is consistent with the way that chaperones are employed by the contract system: chaperones are attached to values typically only as they pass through module boundaries, and rarely to track intra-module blame.
+
+Finally, we illustrate the rationale of a protocol in which the negative guard produces the positive guard instead of the user providing it to \scheme{chaperone-prodedure} directly.
+Consider the installation of a chaperone on the square root function, \scheme{sqrt}, given by
+\begin{schemedisplay}
+(chaperone-procedure
+ sqrt
+ (LAMBDA (x)
+   (if (and (real? x) (GE x 0))
+       (values (LAMBDA (y)
+                 (if (and (real? x) (< (abs (- (* y y) x)) EPS))
+                     y
+                     (blame positive blame ...)))
+               x)
+       (raise negative blame ...))))
+\end{schemedisplay}
+wherein the chaperoning procedure not only refines the domain contract of \scheme{sqrt} (from \scheme{number?} to non-negative \scheme{real?}) but checks its result against a correctness constraint.
+In general, allowing the positive guard to be lexically embedded in the negative guard gives the former access to the arguments of the latter which, in turn, allows richer specifications to be expressed, such as dependent contracts \cite{findler2002contracts}.
+
+\subsection{From contracts to impersonators and run-time costs}
+
+There are three distinct phases in the contract lifecycle:
+The \emph{creation} phase occurs when the application of contract combinators is evaluated---for instance \scheme{(number? . -> . number?)}.
+The \emph{projection} phase occurs when the contract is attached to a value and so may occur multiple times.
+We can imagine a procedure which maps a simple contract and higher-order value to a contracted higher-order value which would behave similar to
+\begin{schemedisplay}
+(define (-> dom/c rng/c)
+  (LAMBDA (f)
+    (LAMBDA (x)
+      (rng/c (f (dom/c x))))))
+\end{schemedisplay}
+The \emph{application} phase occurs whenever the contract is checked.
+For contracted procedures, the domain and range contracts are checked whenever the procedure is applied.
+
+We can put the phases of creation, projection, and application of the contract lifecycle in correspondence with components of the impersonating lifecycle.
+
+The contracted tail-recursive factorial procedure expressed as a chaperone is
+\begin{schemedisplay}
+(define fact (chaperone-procedure
+              (LAMBDA (n a)
+                (if (= n 0)
+                    a
+                    (fact (- n 1) (* n a))))
+              (LAMBDA (n a)
+                (if (and (nonnegative-integer? a)
+                         (positive-integer? a))
+                    (values (LAMBDA (a)
+                              (if (positive-integer? a)
+                                  a
+                                  (raise positive blame ...)))
+                            n a)
+                    (raise negative blame ...)))))
+\end{schemedisplay}
+
+The creation time of the constituent contract corresponds with the evaluation of the negative guard procedure expression (a simple $\lambda$-term, as is typical) and the positive guard procedure expression.
+Because the positive guard expression is evaluation at the time of application, the creation time of the contract corresponds to two separate times.
+%In the vast majority of cases, these guard expressions are simple $\lambda$-terms so their contribution to the overall cost of interposition is negligible.
+
+The projection time of a contract corresponds with the installation of an impersonator on a procedure.
+This is essentially an atomic operation.
+
+The bulk of the run-time cost of interposition is accrued at application time which corresponds exactly to that of a contract.
+The cost incurred is due to enforcement of the interposition protocol.
+This entails that
+\begin{itemize}
+\item negative guards must return the same number of values as given (except for an optional positive guard value);
+\item the positive guard, if provided, must be a procedure;
+\item the positive guard must accept the number of results produced by the impersonated procedure;
+\item the positive guard must produce the same number of results as arguments given to it;
+\end{itemize}
+and, for chaperoning interposition,
+\begin{itemize}
+\item the negative guard must return only its arguments or chaperoned versions of them; and
+\item the positive guard must do likewise.
+\end{itemize}
+
+Thus, we would prefer to remove all application costs due to interposition, but will accept merely removing the costs specific to chaperoning.
