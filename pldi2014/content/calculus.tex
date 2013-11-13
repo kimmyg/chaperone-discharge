@@ -3,25 +3,30 @@
 In order to explicate a static analysis of higher-order interposition, we define \chapcalc, or \emph{chaperone calculus}, an extension of the A-normalized $\lambda$-calculus with interposition facilities.
 
 As only a moderate extension of the $\lambda$-calculus, \chapcalc\ lacks many Racket features.
-Mutation, in particular, is conspicuously absent.
+%Mutation, in particular, is conspicuously absent.
 We discuss the integration of other language features in Section \ref{sec:limitations}.
 
 
 \subsection{\chapcalc\ Syntax}
 
-The syntax of \chapcalc\ can be seen in figure \ref{fig:syntax}.
+The syntax of \chapcalc\ can be seen in Figure \ref{fig:syntax}.
 
 \chapcalc\ inherits application, abstraction, and variable terms from the $\lambda$-calculus.
 It includes simple values from the domain of integers and booleans as well as a set of first-class primitive procedures which operate over these values.
+The inclusion of primitive procedures and introduction of impersonators and chaperones enriches the class of operators formerly inhabited only by closures.
+This enrichment is masked somewhat in the language behind a single discriminator---\scheme{operator?}---for any members of the class.
 
-The syntactic class $\mathit{ae}$ signifies \emph{atomic expressions} and includes $\lambda$-terms, variables, and the simple values of booleans, integers, and primitive procedures, which include \scheme{imp-op} and \scheme{chap-op}.
+The syntactic class \ae\ signifies \emph{atomic expressions} and includes $\lambda$-terms, variables, and the simple values of booleans, integers, and primitive procedures, which include \scheme{imp-op} and \scheme{chap-op}.
 Expressions classified as such will never produce an error or diverge.
 
 The syntactic class $c$ denotes procedure application sites which are formed by an atomic operator expression followed by a sequence of atomic operand expressions.
 
 The syntatic class of expressions, denoted $e$, includes \scheme{let}, and \scheme{if} expressions.
+Concrete syntax in examples may include \scheme{letrec} which is defined simply in terms of \scheme{let} and the \scheme{Y} combinator, as well as \scheme{and} and \scheme{or} defined in terms of \scheme{if}.
 
 Every term is annotated with a unique label $\ell$ to keep otherwise identical terms distinguishable, but labels will be made explicit only for application sites.
+
+A program is a term in the grammar with no free variables and in which all identifiers in the same binding form are pairwise distinct.
 
 \newcommand{\vx}[0]{\mathbf{x}}
 
@@ -38,31 +43,31 @@ Every term is annotated with a unique label $\ell$ to keep otherwise identical t
 \newcommand{\stxclass}[4]{$#1\in\mathbf{#2}$ &::=& #3 & #4}
 \newcommand{\stxclasscont}[2]{&$|$& #1 & #2}
 
+\setspecialsymbol{ae}{$\ae$}
+
 \setlength{\tabcolsep}{1pt}
 \begin{figure}
 \label{fig:syntax}
 
 \begin{tabular}{ r r l l }
-\stxclass{c}{Call}{\scheme|(ae ae ...)|$^\ell$}{application}\\
 \stxclass{e}{Exp}{\scheme|(let ((x ...) c) e)|}{let}\\
 \stxclasscont{\scheme|(if ae e e)|}{if}\\
-\stxclasscont{\scheme|ae|}{}\\
-\stxclass{\mathit{ae}}{AExp}{$\mathit{lam}$ $|$ $p$ $|$ $x$ $|$ $n$ $|$ $b$}{atomic expressions}\\
+\stxclasscont{$c$}{}\\
+\stxclasscont{\ae}{}\\
+\stxclass{c}{Call}{\scheme|(ae ae ...)|$^\ell$}{application}\\
+\stxclass{\ae}{AExp}{$\mathit{lam}$ $|$ $p$ $|$ $x$ $|$ $n$ $|$ $t$}{atomic expressions}\\
 \stxclass{\mathit{lam}}{Lam}{\scheme|(LAMBDA (x ...) e)|}{lambda terms}\\
 \stxclass{p}{Prim}{\scheme|imp-op| $|$ \scheme|chap-op| $|$ \scheme|values| $|$ \scheme|raise|}{primitives}\\
 \stxclasscont{\scheme|<| $|$ \scheme|>| $|$ \scheme|=| $|$ \scheme|+| $|$ \scheme|-| $|$ \scheme|not|}{}\\
 \stxclasscont{\scheme|operator?| $|$ \scheme|integer?| $|$ \scheme|boolean?|}{}\\
 \stxclass{x}{Var}{an infinite set of variables}{}\\
-\stxclass{\ell}{Lab}{an infinite set of labels}{}\\
 \stxclass{n}{Int}{$0\,|\,1\,|\,-1\,|\,2\,|\,-2\,|\,\dots$}{integers}\\
-\stxclass{b}{Bool}{$\true\,|\,\false$}{booleans}
+\stxclass{t}{Bool}{$\true\,|\,\false$}{booleans}\\
+\stxclass{\ell}{Lab}{an infinite set of labels}{}
 \end{tabular}
 
 \caption{The syntax of \chapcalc.}
 \end{figure}
-
-A program is a term in the grammar with no free variables and in which all identifiers in the same binding form are pairwise distinct.
-
 
 
 
@@ -126,8 +131,6 @@ A program is a term in the grammar with no free variables and in which all ident
 \newcommand{\app}[4]{\mathrm{apply}(#1,#2,#3,#4)}
 \newcommand{\red}[2]{\begin{align*}& #1\\\rr\, & #2\end{align*}}
 
-\newcommand{\bind}[4]{\mathrm{bind}(#1,#2,#3,#4)}
-
 \newcommand{\clo}[2]{\nttwo{clos}{#1}{#2}}
 \newcommand{\imp}[2]{\ntthr{imp}{\ell}{#1}{#2}}
 \newcommand{\cha}[2]{\ntthr{chap}{\ell}{#1}{#2}}
@@ -145,28 +148,27 @@ A program is a term in the grammar with no free variables and in which all ident
 \newcommand{\rr}{\longrightarrow}
 \newcommand{\rrs}{\longrightarrow^{*}}
 
-We define the \scheme{letrec} form in terms of the \scheme{let} form and \scheme{Y} combinator.
+
 
 \subsection{$\chapcalc$ Semantics}
 
 We define the semantics of \chapcalc\ in terms of an abstract machine similar to Felleisen's CESK machine~\cite{felleisen1987calculus} to facilitate the eventual pushdown analysis.
-
-With the introduction of chaperones and impersonators and the inclusion of primitive functions, we can no longer count on the operator of an application to be a closure.
-Thus, we will treat these three categories of values as classes of \emph{operators} and will refer to them collectively as such.
+Figure~\ref{fig:states} presents the definition of the abstract machine space.
 
 We use boldface to denote a vector of objects in that category; e.g., $\vv$ denotes a vector $\langle v_1,\dots,v_n\rangle$ for some natural number $n$.
 We use a star ($^*$) for the same purpose when boldface is not available; e.g., $\gamma^*$ denotes a vector $\langle\gamma_1,\dots,\gamma_n\rangle$.
 
-\subsection{injection}
+First we define a set of metafunctions that the semantics relies on.
 
-A program is injected into a machine state with the function $\mathcal{I} : e\rightarrow\Sigma$ defined as $\mathcal{I}(p)=\sexp{\langle\rangle}{\perp}{\perp}{p}$.
+\subsubsection{Program Injection}
 
-\subsection{$\mathcal{A}$}
+A program is injected into a machine state with the function $\mathcal{I} : e\rightarrow\mathbf{State}$ defined as $\mathcal{I}(p)=\sexp{\langle\rangle}{\perp}{\perp}{p}$.
+
+\subsubsection{Atomic Expression Evaluation}
 
 \newcommand{\Aeval}[1]{\ensuremath{\mathcal{A}(\sigma,\rho,#1)}}
 
-In the following reductions, $\mathcal{A}$ is defined by
-
+The metafunction $\mathcal{A}$ is used to evaluate atomic expressions and is defined by
 \begin{tabular}{ r l l }
 \Aeval{\mathit{lam}} &= \clo{\mathit{lam}}{\rho} & $\lambda$-terms\\
 \Aeval{x}            &= $\sigma(\rho(x))$ & variables\\
@@ -175,29 +177,37 @@ In the following reductions, $\mathcal{A}$ is defined by
 \Aeval{p}            &= $p$ & primitives\\
 \end{tabular}
 
-\subsection{bind}
+\subsubsection{Variable Binding}
 
-$bind(\sigma,\rho,x,v)=(\sigma',\rho')$ where $\sigma'=\sigma[a\rightarrow v]$, $\rho'=\rho[x\rightarrow a]$, and $a=alloc(x)$.
+\newcommand{\bind}[2]{\ensuremath{\mathrm{bind}(\sigma,\rho,#1,#2)}}
+\newcommand{\alloc}[1]{\ensuremath{\mathrm{alloc}(#1)}}
 
-\subsection{alloc}
+Rather than an environment binding a variable to a value, it binds a variable to an address which is bound to a value by the store.
+(This indirection will make later semantic changes more subdued.)
+In consequence, the a new variable-value binding touches both the environment and the store.
 
-The metafunction $alloc$ simply returns a fresh address.
+We define $\bind{x}{v}=(\sigma',\rho')$ where $\sigma'=\sigma[a\rightarrow v]$, $\rho'=\rho[x\rightarrow a]$, and $a=\alloc{x}$ where $\alloc{x}$ simply returns a fresh address for $x$.
+We also fold $\mathrm{bind}$ over identically-sized variable vectors $\vx$ and value vectors $\vv$.
 
-\subsection{chaperone-of?}
-
+\subsubsection{chaperone-of?}
 
 \newcommand{\chapof}[2]{\ensuremath{\mathrm{chaperone\mhyphen of?}(#1,#2)}}
 
 The relation \chapof{v}{v'} holds when parts of $v$ can be derived from corresponding parts of $v'$ through \scheme{chap-op}.
+We lift $\mathrm{chaperone\mhyphen of?}$ element-wise over vectors.
 
-It holds if any of the following hold.
-(This definition is not given in terms of sequential pattern matching. Two chaperones satisfy the relation if they meet the conditions of the first clause \emph{or} the second clause.)
+%It holds if any of the following hold.
+%(This definition is not given in terms of sequential pattern matching. Two chaperones satisfy the relation if they meet the conditions of the first clause \emph{or} the second clause.)
 
-\begin{tabular}{ l l}
-\chapof{\cha{f}{w}}{\cha{f'}{w'}} & if \chapof{f}{f'} and \chapof{w}{w'} or if \chapof{f}{\cha{f'}{w'}}\\
-\chapof{\cha{f}{w}}{f'} & if \chapof{f}{f'}\\
-\chapof{f}{f} & if \scheme{operator?(f)}\\
+\begin{itemize}
+\item[] \chapof{\cha{f}{w}}{\cha{f'}{w'}}\\
+\begin{tabular}{ r l }
+   & if \chapof{f}{f'} and \chapof{w}{w'}\\
+or & if \chapof{f}{\cha{f'}{w'}}
 \end{tabular}
+\item[] \chapof{\cha{f}{w}}{f'} if \chapof{f}{f'}
+\item[] \chapof{f}{f} if \scheme{operator?(f)}
+\end{itemize}
 
 %\begin{verbatim}
 %chaperone-of? (chaperone f w) (chaperone f' w')
@@ -209,16 +219,31 @@ It holds if any of the following hold.
 %if e_LAMBDA=e_LAMBDA' and \rho=\rho'
 %\end{verbatim}
 
-We lift $\mathrm{chaperone\mhyphen of?}$ element-wise over vectors.
 
 
-\subsection{arity}
+\subsubsection{Operator Arity}
 
-$\arity{\clo{\lame{x_1\,\dots\,x_n}{e}}{\rho}}=\{n\}$
+The arity of an operator in \chapcalc\ is a set of natural numbers each indicating a number of arguments the operator will accept.
+For most operators in \chapcalc\, this arity is a singleton.
+To wit, the arity of closures is simply the number of formal parameters of the $\lambda$-term.
 
-$\arity{\cha{f}{w}}=\arity{f}$
+\begin{itemize}
+\item[] $\arity{\clo{\lame{x_1\,\dots\,x_n}{e}}{\rho}}=\{n\}$
+\end{itemize}
 
-$\arity{\mathit{values}}=\{0,1,2,\dots\}$
+The arity of impersonators (including chaperones) is the arity of the impersonated operator.
+
+\begin{itemize}
+\item[] $\arity{\imp{f}{w}}=\arity{f}$
+\end{itemize}
+
+The arity of each primitive procedure is straightforward with two exceptions:
+
+\begin{itemize}
+\item[] $\arity{\mathit{values}}=\{0,1,2,\dots\}$
+\item[] $\arity{\mathit{raise}}=\{0,1,2,\dots\}$
+\end{itemize}
+
 
 \newcommand{\funarr}[2]{$\mathbf{#1}\rightarrow\mathbf{#2}$}
 
@@ -241,7 +266,7 @@ $\arity{\mathit{values}}=\{0,1,2,\dots\}$
 \stxclasscont{\chacwk{f}{\vv}}{chaperone negative}\\
 \stxclasscont{\chacfk{w}}{chaperone function}\\
 \stxclasscont{\chacrk{\vv}}{chaperone positive}\\
-\stxclass{v}{Val}{$f\,|\,n\,|\,b$}{values}\\
+\stxclass{v}{Val}{$f\,|\,n\,|\,t$}{values}\\
 \stxclass{\sigma}{Store}{\funarr{Addr}{Val}}{stores}\\
 \stxclass{\rho}{Env}{\funarr{Var}{Addr}}{environments}\\
 \stxclass{f,w}{Op}{\nttwo{clos}{\mathit{lam}}{\rho}}{closures}\\
@@ -254,26 +279,24 @@ $\arity{\mathit{values}}=\{0,1,2,\dots\}$
 \caption{Abstract machine state space for \chapcalc}
 \end{figure}
 
-Figure~\ref{fig:states} presents the variants of machine states.
-\begin{itemize}
-\item An \emph{evaluation} state $\sexp{\ks}{\sigma}{\rho}{e}$ corresponds to a traditional CESK state.
+\subsection{Abstract Machine States}
+
+A state $\sexp{\ks}{\sigma}{\rho}{e}$ corresponds to a traditional CESK state, that is, the evaluation of an expression.
 (The order of the components is reversed, however, to aid factoring out common components from among the variants.)
 
-%$\varsigma\in\mathrm{Kont}\times\mathrm{Sto}\times\mathrm{Env}\times\mathrm{Exp}$
+A state $\sapp{\ks}{\sigma}{f}{\vv}$ represents a point of application and dispatches on the operator type (closure, impersonator, or primitive).
 
-\item A state $\sapp{\ks}{\sigma}{f}{\vv}$ represents a point of application and dispatches on the operator type (closure, impersonator, or primitive).
-\item A state $\sval{\ks}{\sigma}{\vv}$ represents a point of return and dispatches on the type of the top continuation frame.
+A state $\sval{\ks}{\sigma}{\vv}$ represents a point of return and dispatches on the type of the top continuation frame.
 If the continuation is empty, the constituent values are the results of the program.
-\item A state $\serr{\ks}{\sigma}{b}$, represents the arisal of an error and, as the result of the program, may include blame information.
-\item Finally, the states $\simpz{\ks}{\sigma}{\ell}{f}{w}{\vv}$, $\simpo{\ks}{\sigma}{\ell}{w}{\vv}$, $\schaz{\ks}{\sigma}{\ell}{f}{w}{\vv}$, and $\schao{\ks}{\sigma}{\ell}{w}{\vv}$ each split a transition which would otherwise pop and push a frame simulaneously into a sequence of two transitions which performs each separately.
-(These are for convenience for the eventual pushdown analysis.)
-\end{itemize}
 
-Before defining the evaluation relation, we define a few meta-functions.
+A state $\serr{\ks}{\sigma}{b}$, represents the arisal of an error and, as the result of the program, may include blame information.
 
-\subsection{test}
+Finally, the states $\simpz{\ks}{\sigma}{\ell}{f}{w}{\vv}$, $\simpo{\ks}{\sigma}{\ell}{w}{\vv}$, $\schaz{\ks}{\sigma}{\ell}{f}{w}{\vv}$, and $\schao{\ks}{\sigma}{\ell}{w}{\vv}$ each split a transition which would otherwise pop and push a frame simulaneously into a sequence of two transitions which performs each separately.
+(These are for convenience for the eventual static analysis.)
 
-\subsubsection{application}
+\subsection{Evaluation Relation}
+
+\subsubsection{Application}
 
 \noindent
 \red{\sexp{\ks}{\sigma}{\rho}{\appe{\ae_f}{\ae_1\,\dots\,\ae_n}}}{\sapp{\ks}{\sigma}{f}{\langle v_1,\dots,v_n\rangle}}
@@ -281,7 +304,7 @@ Before defining the evaluation relation, we define a few meta-functions.
 \noindent
 where $f=\A{\sigma}{\rho}{\ae_f}$ and $v_i=\A{\sigma}{\rho}{\ae_i}$ for $i=1,\dots,n$.
 
-\subsubsection{let}
+\subsubsection{The let Form}
 
 \noindent
 \red{\sexp{\ks}{\sigma}{\rho}{\lete{x_1\,\dots\, x_n}{e_0}{e_1}}}{\sexp{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\rho}{e_0}}
@@ -292,7 +315,7 @@ where $\vx=\langle x_1,\dots,x_n\rangle$.
 \red{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}{\sexp{\ks}{\sigma'}{\rho'}{e_1}}
 
 \noindent
-where $(\sigma',\rho')=\bind{\sigma}{\rho}{\vx}{\vv}$ if $|\vx|=|\vv|$
+where $(\sigma',\rho')=\bind{\vx}{\vv}$ if $|\vx|=|\vv|$
 
 \red{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}{\dynbla{\ks}} if $|\vx|\ne|\vv|$
 
@@ -315,7 +338,7 @@ where $v_t=\A{\sigma}{\rho}{\ae_t}$.
 The application of a closure operator proceeds straightforwardly by extending its environment and evaluating its body.
 
 \red{\sapp{\ks}{\sigma}{\clo{\lame{x_1\,\dots\,x_n}{e}}{\rho}}{\vv}}{\sexp{\ks}{\sigma'}{\rho'}{e}}
-if $|\vx|=|\vv|$ where $\vx=\langle x_1,\dots,x_n\rangle$ and $(\sigma',\rho')=\bind{\sigma}{\rho}{\vx}{\vv}$
+if $|\vx|=|\vv|$ where $\vx=\langle x_1,\dots,x_n\rangle$ and $(\sigma',\rho')=\bind{\vx}{\vv}$
 
 If the number of values applied is incompatible with the arity of the closure, blame is assigned dynamically.
 
