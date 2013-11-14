@@ -121,7 +121,6 @@ A program is a term in the grammar with no free variables and in which all ident
 \newcommand{\sexp}[4]{\mathbf{eval}(#1,#2,#3,#4)}
 \newcommand{\sval}[3]{\mathbf{value}(#1,#2,#3)}
 \newcommand{\sapp}[4]{\mathbf{apply}(#1,#2,\ell,#3,#4)}
-%\newcommand{\scha}[6]{\Sigma_d(#1,#2,#3,#4,#5,#6)}
 \newcommand{\simpz}[6]{\mathbf{imp_0}(#1,#2,#3,#4,#5,#6)}
 \newcommand{\simpo}[5]{\mathbf{imp_1}(#1,#2,#3,#4,#5)}
 \newcommand{\schaz}[6]{\mathbf{chap_0}(#1,#2,#3,#4,#5,#6)}
@@ -129,13 +128,15 @@ A program is a term in the grammar with no free variables and in which all ident
 \newcommand{\serr}[3]{\mathbf{error}(#1,#2,#3)}
 \newcommand{\sbla}[2]{\mathrm{blame}_{#1}(#2)}
 \newcommand{\app}[4]{\mathrm{apply}(#1,#2,#3,#4)}
-\newcommand{\red}[2]{\begin{align*}& #1\\\rr\, & #2\end{align*}}
+\newcommand{\red}[2]{\begin{equation}\begin{aligned}& #1\\\rr\, & #2\end{aligned}\end{equation}}
+\newcommand{\reda}[2]{$#1\rr#2$}
+
 
 \newcommand{\clo}[2]{\nttwo{clos}{#1}{#2}}
 \newcommand{\imp}[2]{\ntthr{imp}{\ell}{#1}{#2}}
 \newcommand{\cha}[2]{\ntthr{chap}{\ell}{#1}{#2}}
 
-\newcommand{\letk}[3]{\mathrm{let}_\kappa(#1,#2,#3)}
+\newcommand{\letk}[3]{\ntthr{let}{#1}{#2}{#3}}
 
 \newcommand{\impcwk}[2]{\ntthr{imp\mhyphen neg}{\ell}{#1}{#2}}
 \newcommand{\impcfk}[1]{\nttwo{imp\mhyphen fun}{\ell}{#1}}
@@ -148,8 +149,6 @@ A program is a term in the grammar with no free variables and in which all ident
 \newcommand{\rr}{\longrightarrow}
 \newcommand{\rrs}{\longrightarrow^{*}}
 
-
-
 \subsection{$\chapcalc$ Semantics}
 
 We define the semantics of \chapcalc\ in terms of an abstract machine similar to Felleisen's CESK machine~\cite{felleisen1987calculus} to facilitate the eventual pushdown analysis.
@@ -157,6 +156,8 @@ Figure~\ref{fig:states} presents the definition of the abstract machine space.
 
 We use boldface to denote a vector of objects in that category; e.g., $\vv$ denotes a vector $\langle v_1,\dots,v_n\rangle$ for some natural number $n$.
 We use a star ($^*$) for the same purpose when boldface is not available; e.g., $\gamma^*$ denotes a vector $\langle\gamma_1,\dots,\gamma_n\rangle$.
+The notation $x::\vx$ denotes the prepend of $x$ to the vector $\vx$.
+(If $\vx=\langle x_1,x_2,\dots,x_n\rangle$, then $x::\vx=\langle x,x_1,x_2,\dots,x_n\rangle$.)
 
 First we define a set of metafunctions that the semantics relies on.
 
@@ -259,7 +260,7 @@ The arity of each primitive procedure is straightforward with two exceptions:
 \stxclasscont{$\simpo{\ks}{\sigma}{\ell}{w}{\vv}$}{imp1}\\
 \stxclasscont{$\schaz{\ks}{\sigma}{\ell}{f}{w}{\vv}$}{chap0}\\
 \stxclasscont{$\schao{\ks}{\sigma}{\ell}{w}{\vv}$}{chap1}\\
-\stxclass{\gamma}{Frame}{\ntthr{let}{\vx}{\rho}{e}}{let}\\
+\stxclass{\gamma}{Frame}{\letk{\vx}{\rho}{e}}{let}\\
 \stxclasscont{\impcwk{f}{\vv}}{impersonator negative}\\
 \stxclasscont{\impcfk{w}}{impersonator function}\\
 \stxclasscont{\impcrk{\vv}}{impersonator positive}\\
@@ -281,20 +282,55 @@ The arity of each primitive procedure is straightforward with two exceptions:
 
 \subsection{Abstract Machine States}
 
-A state $\sexp{\ks}{\sigma}{\rho}{e}$ corresponds to a traditional CESK state, that is, the evaluation of an expression.
+An $\mathbf{eval}$ state corresponds to a traditional CESK state, that is, the evaluation of an expression.
 (The order of the components is reversed, however, to aid factoring out common components from among the variants.)
 
-A state $\sapp{\ks}{\sigma}{f}{\vv}$ represents a point of application and dispatches on the operator type (closure, impersonator, or primitive).
+An $\mathbf{apply}$ state represents a point of application and dispatches on the operator type (closure, impersonator, or primitive).
 
-A state $\sval{\ks}{\sigma}{\vv}$ represents a point of return and dispatches on the type of the top continuation frame.
+A $\mathbf{value}$ state represents a point of return and dispatches on the type of the top continuation frame.
 If the continuation is empty, the constituent values are the results of the program.
 
-A state $\serr{\ks}{\sigma}{b}$, represents the arisal of an error and, as the result of the program, may include blame information.
+An $\mathbf{error}$ state represents the arisal of an error and, as the result of the program, may include blame information.
 
-Finally, the states $\simpz{\ks}{\sigma}{\ell}{f}{w}{\vv}$, $\simpo{\ks}{\sigma}{\ell}{w}{\vv}$, $\schaz{\ks}{\sigma}{\ell}{f}{w}{\vv}$, and $\schao{\ks}{\sigma}{\ell}{w}{\vv}$ each split a transition which would otherwise pop and push a frame simulaneously into a sequence of two transitions which performs each separately.
+Finally, the $\mathbf{imp_0}$, $\mathbf{imp_1}$, $\mathbf{chap_0}$, and $\mathbf{chap_1}$ states each split a transition which would otherwise pop and push a frame simulaneously into a sequence of two transitions which performs each separately.
 (These are for convenience for the eventual static analysis.)
 
 \subsection{Evaluation Relation}
+
+
+
+\begin{figure*}
+\subsubsection{Application}
+
+\noindent
+\reda{\sexp{\ks}{\sigma}{\rho}{\appe{\ae_f}{\ae_1\,\dots\,\ae_n}}}{\sapp{\ks}{\sigma}{f}{\langle v_1,\dots,v_n\rangle}}
+where $f=\A{\sigma}{\rho}{\ae_f}$ and $v_i=\A{\sigma}{\rho}{\ae_i}$ for $i=1,\dots,n$.
+
+\subsubsection{The let Form}
+
+\noindent
+\reda{\sexp{\ks}{\sigma}{\rho}{\lete{x_1\,\dots\, x_n}{e_0}{e_1}}}{\sexp{\letk{\vx}{\rho}{e_1}::\ks}{\sigma}{\rho}{e_0}} where $\vx=\langle x_1,\dots,x_n\rangle$.
+
+\reda{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}{\sexp{\ks}{\sigma'}{\rho'}{e_1}}
+where $(\sigma',\rho')=\bind{\vx}{\vv}$ if $|\vx|=|\vv|$
+
+\reda{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}{\dynbla{\ks}}
+if $|\vx|\ne|\vv|$
+
+\subsubsection{The let Form}
+
+\reda{\sexp{\ks}{\sigma}{\rho}{\ife{\ae_t}{e_c}{e_a}}}{\sexp{\ks}{\sigma}{\rho}{e_c}}
+if $v_t\ne\false$
+where $v_t=\A{\sigma}{\rho}{\ae_t}$.
+
+\reda{\sexp{\ks}{\sigma}{\rho}{\ife{\ae_t}{e_c}{e_a}}}{\sexp{\ks}{\sigma}{\rho}{e_a}}
+if $v_t=\false$
+where $v_t=\A{\sigma}{\rho}{\ae_t}$.
+\end{figure*}
+
+
+
+
 
 \subsubsection{Application}
 
@@ -307,7 +343,7 @@ where $f=\A{\sigma}{\rho}{\ae_f}$ and $v_i=\A{\sigma}{\rho}{\ae_i}$ for $i=1,\do
 \subsubsection{The let Form}
 
 \noindent
-\red{\sexp{\ks}{\sigma}{\rho}{\lete{x_1\,\dots\, x_n}{e_0}{e_1}}}{\sexp{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\rho}{e_0}}
+\red{\sexp{\ks}{\sigma}{\rho}{\lete{x_1\,\dots\, x_n}{e_0}{e_1}}}{\sexp{\letk{\vx}{\rho}{e_1}::\ks}{\sigma}{\rho}{e_0}}
 
 \noindent
 where $\vx=\langle x_1,\dots,x_n\rangle$.

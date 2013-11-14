@@ -80,12 +80,10 @@ The \emph{projection} phase occurs when the contract is attached to a value and 
 We can imagine a procedure which maps a simple contract and higher-order value to a contracted higher-order value which would behave similar to
 \begin{schemedisplay}
 (define (-> dom/c rng/c)
-  (LAMBDA (f)
-    (LAMBDA (x)
-      (rng/c (f (dom/c x))))))
+  (LAMBDA (f) (LAMBDA (x) (rng/c (f (dom/c x))))))
 \end{schemedisplay}
 The \emph{application} phase occurs whenever the contract is checked.
-For contracted procedures, the domain and range contracts are checked whenever the procedure is applied.
+For contracted procedures, the domain contract is checked whenever the procedure is applied and the range contract when the result is obtained.
 
 We can put the phases of creation, projection, and application of the contract lifecycle in correspondence with components of the impersonating lifecycle.
 
@@ -129,4 +127,4 @@ and, for chaperoning interposition,
 \item the positive guard must do likewise.
 \end{itemize}
 
-Thus, we would prefer to remove all application costs due to interposition, but will accept merely removing the costs specific to chaperoning.
+Thus, we would prefer to remove all application costs due to interposition, but, when unattainable, will accept merely removing the costs specific to chaperoning.

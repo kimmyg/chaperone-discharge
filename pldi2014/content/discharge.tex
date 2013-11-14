@@ -1,58 +1,161 @@
 \section{Chaperone Discharge and Demotion}
 
-\subsection{Expectation that many dynamic checks are unnecessary}
-
 Programs that can result in an error are incorrect; the purpose of blame assignment is to facilitate the act of correcting the program.
 We expect a program to result in a blame assignment only rarely.
-We have similar expections for a program to result in divergence, and that specifically at the hand of a chaperoned value.
-In fact, we expect correct programs never to exhibit such behavior, and while chaperones serve the reality of incorrect programs, the frequency of their complaints diminishes in the long run as the programmer applies their feedback.
+In fact, we expect correct programs never to do so, and while chaperones serve the reality of incorrect programs, the frequency of their complaints diminishes in the long run as the programmer applies their feedback.
 The nature of the programming cycle indicates that there may be some chaperones which, situated within a particular program, do not influence the behavior of the program and also that the proportion of chaperoned values in such a position may increase as the program is maintained.
 
-Strickland et al.~\cite{strickland2012chaperones} present a chaperone erasure theorem for a calculus with vector-manipulation primitives.
+
+%Instead, the program diverges in the determination of \scheme{(even? 1)} when the first recursive call
+
+%This program avoids the degenerate behavior of contracted recursive functions by applying the contract shallowly
+%Of course, this could be avoided if the domain of \scheme{even?} was properly specified and enforced by a behavioral contract, but it is recursion which 
+
+%(letrec ([(even? odd?) (values (LAMBDA (n)
+%			         (let ([(test) (= n 0)])
+%			           (if test
+%			               #t
+%			               (let ([n-1 (- n 1)])
+%			                 (odd? n-1)))))
+%			       (LAMBDA (n)
+%			         (let ([(test) (= n 0)])
+%			           (if test
+%			               #f
+%			               (let ([n-1 (- n 1)])
+%			                 (even? n-1))))))])
+%  (let ([f (chap-op (LAMBDA (n) (+ n 1))
+%                               (LAMBDA (n)
+%                                 (let ([(test) (even? n)])
+%                                   (if test
+%                                       (values (LAMBDA (n)
+%                                                 (let ([(test) (odd? n)])
+%                                                   (if test
+%                                                       n
+%                                                       (raise))))
+%                                               n)
+%                                       (raise)))))])
+%    (f 2)))
+%by the call \scheme{(f -1)}
+%where we rely on our previous definition of \scheme{letrec}.
+%Even though this program results in a value, our analysis cannot discharge the chaperone since the call graph rooted at each guard procedure has a cycle in it.
+%It \emph{could} be done with appeal to the size-change termination property (adapted since the standard ordering on integers is not well-founded).
+%Our analysis can demote the chaperone to an impersonator, though.
+
+
+
+
+Strickland et al.~\cite{strickland2012chaperones} present a chaperone erasure theorem for a calculus with chaperoned vectors.
 This theorem establishes that a program with chaperoned values which evaluates successfully will exhibit the same behavior with all the chaperones erased--that is, with chaperone installment removed from the program.
-The chaperone erasure theorem, then, makes a statement about the influence chaperones have on the meaning of programs.
-We present theorems which build on this conceptual result by giving the conditions under which a chaperone installation can be omitted without changing the meaning of the program.
+In essence, the theorem bounds the influence chaperones can have on correct programs.
 
-\subsection{Intuition behind sound discharge}
+We are after a similar result for chaperoned procedures which will allow us to identify meaningful chaperoned values---values which influence the behavior of the program via chaperoning.
+While chaperoned values do so primarily by raising an error, chaperoned procedures can affect program behavior by diverging.
+While we expect that programs will seldom result in divergence, and that specifically at the hand of a chaperoned value, specifications expressed in the source language are susceptible to the same programmer errors as the program proper, which includes unintended partiality.
 
-The conditions necessary for the sound discharge of a chaperone are more easily constructed by considering the conditions sufficient for a chaperone to be meaningful.
-If we can enumerate a complete set of these conditions in the sense that any meaningful chaperone must meet at least one of the conditions, we obtain the soundness conditions by complement.
+Consider the subtle error in the program
+\begin{schemedisplay}
+(letrec ([even? (LAMBDA (n)
+                (if (= n 0)
+                      #t
+                      (odd? (- n 1))))]
+         [odd? (LAMBDA (n)
+                 (if (= n 1)
+                     #t
+                     (even? (- n 1))))])
+  (let ([-> (LAMBDA (dom/c rng/c)
+              (LAMBDA (f) (chaperone-procedure
+                           f
+                           (LAMBDA (x) (values rng/c (dom/c x))))))])
+    (let ([even/c ((-> nonnegative-integer/c boolean/c) even?)]
+          [odd/c  ((-> nonnegative-integer/c boolean/c) odd?)])
+      (let ([f ((-> even/c odd/c) (LAMBDA (n) (+ n 1)))])
+        (f 1))))
+\end{schemedisplay}
+manifested by the body call \scheme{(f 1)}.
+The programmer expects the domain violation of \scheme{f} to be reported, and it would be but for the base case logical error in \scheme{odd?}.
+Instead, the numeric value passes a guard for the first and only time through \emph{even/c}, the contracts on \scheme{even?} and \scheme{odd?} being only shallowly installed.
+(Shallow installation is typical of intra-module procedures---especially mutually-recursive ones.)
+As a result, the logical error in \scheme{odd?} is not caught by the contract system, despite it being the precise situation for which the system was designed, and the program diverges unchecked.\footnote{The programmer could embed the specifications deeper into the definitions but would then pay the well-known contract penalty.
+As long as contracts remain expensive, cheaper alternatives but nevertheless with high cost--such as the ``remote'' possibility of incorrectness--prevail.}
 
-A chaperone \emph{cannot} be discharged if
+This example illustrates the need to include divergence in the set of effects a judgment of meaningfulness must consider.
+
+\subsection{Sound chaperone discharge}
+
+If a specific chaperoned value is not meaningful in a particular execution, it can be soundly \emph{discharged}, meaning that it is safe to replace its particular installation with identity if it is possible to do so.
+(The soundness claim does not say it is necessarily possible---only safe---to do so.)
+A chaperone is meaningful if
 \begin{enumerate}
 \item the negative guard causes an error to be raised,
-\item the negative guard diverges,
+\item \label{con:neg-divergence} the negative guard diverges,
 \item the negative guard does not return the same number of results as arguments given (or one extra),
 \item the extra result, if provided, is not a procedure,
 \item the results of the negative guard are not, at most, chaperones of the arguments,
 \item the positive guard does not accept the number of results produced by the chaperoned procedure,
 \item the positive guard causes an error to be raised,
 \item the positive guard diverges,
-\item the positive guard does not return the same number of results as arguments given, or
-\item the results of the positive guard are not, at most, chaperones of the arguments.
+\item the positive guard does not return the same number of results as arguments given,
+\item the results of the positive guard are not, at most, chaperones of the arguments, or
+\item its application effects the installation of a meaningful chaperone.
 \end{enumerate}
 
-For a given program execution, if neither a chaperone nor its installation raises an error or diverges, it is a candidate for \emph{discharge}, or the [omission/removal] of its installation.
-It is only a candidate because its application may cause a chaperone to be installed and that chaperone may not be well-behaved.
-In this case, discharging the original chaperone would prevent a meaningful chaperone from being created which would make discharge unsound.
-Then, intuitively, a chaperone can be discharged if it will not raise an error or diverge  \emph{and} any chaperones it installs can be discharged.
 
-We choose to discharge a chaperone by replacing the \scheme{chap-op} operator with \scheme{(LAMBDA (x y) x)}; discharge is accomplished by simply failing to install the chaperone at all.
 
-This immediately raises two issues.
+
+
+
+
+We discharge a chaperone by replacing the operator at its point of installation with \scheme{(LAMBDA (x y) x)}; discharge is accomplished by discarding the guard procedure in lieu of attaching it.
+
+This strategy immediately shifts our focus from dynamic points of installation to static points of installation in the following way:
+First, chaperone installation may not be the only operation performed at a call site.
+Thus, we must restrict ourselves to call sites dedicated to that purpose.
+Second, even once we have restricted ourselves to bonafide chaperone-installation sites, there may be more than one chaperone installed at each site.
+Thus, we must restrict ourselves to sites at which no meaningful chaperone is installed.
+Finally, we must extend these conditions from a particular execution to all possible executions.
+% multiple operations performed at a particular site
+% multiple chaperones installed at a particular site (during one particular execution)
+% the chaper
 First, multiple chaperone installations may occur at a given application site during program execution, so we cannot, in all circumstances, selectively prevent the creation of a single chaperone.
-Second, chaperone installation may not be the only operation performed by an application site.
-We address both by analyzing application sites and then only those in which \scheme{chap-op} is the only operator, which we refer to as \emph{chaperone-installation sites}.
-The conditions to discharge a given site are stronger than that of a chaperone installed at that site: instead of demonstrating that a single chaperone satisfies a property, we must demonstrate that every chaperone created at that site satisfies that property \emph{and} that in every chaperone installation at that site, the chaperoning procedure has the same arity [LOOK AT THIS] as the to-be-chaperoned procedure.
 
-When put in these terms, it is clear that chaperone installment at a particular site can be discharged only if it meets these conditions for every possible execution.
+to points of installation
+
+This strategy immediately raises three issues.
+Such a strategy affects all executions
+
+Using this approach to discharge, it is clear that chaperone installment at a particular site can be discharged only if it meets these conditions for every possible execution.
 These conditions seem onerous.
 Indeed, in Racket, users typically access chaperone installation through a library wrapper so all chaperones in the entire program share the same installation site.
 This, in turn, means that a given chaperone can be safely discharged only if \emph{all} chaperones in all executions of the program can be safely discharged.
 %In other words, the program must be correct up to the encoded specification.
 Fortunately, with access to the whole program, we may inline definitions which allows us to multiply the number of installment sites in the program.
 
-\subsection{Intuition behind demotion}
+This immediately raises two issues.
+
+Second, chaperone installation may not be the only operation performed by an application site.
+We address both by analyzing application sites and then only those in which \scheme{chap-op} is the only operator, which we refer to as \emph{chaperone-installation sites}.
+The conditions to discharge a given site are stronger than that of a chaperone installed at that site: instead of demonstrating that a single chaperone is not meaningful, we must demonstrate that every chaperone created at that site is not meaningful \emph{and} that the chaperone installations themselves are not meaningful.
+
+% in every chaperone installation at that site, the chaperoning procedure has the same arity [LOOK AT THIS] as the to-be-chaperoned procedure.
+
+
+The conditions necessary for the sound discharge of a chaperone are more easily constructed by considering the conditions sufficient for a chaperone to be meaningful.
+If we can enumerate a complete set of these conditions in the sense that any meaningful chaperone must meet at least one of the conditions, we obtain the soundness conditions by complement.
+
+
+
+
+
+For a given program execution, if neither a chaperone nor its installation raises an error or diverges, it is a candidate for \emph{discharge}, or the targeted prevention of its installation.
+It is only a candidate because its application may cause a meaningful chaperone to be installed, i.e., a chaperone that is not so well-behaved.
+In this case, discharging the original chaperone would prevent a meaningful chaperone from being created which would make discharge unsound.
+Then, intuitively, a chaperone can be discharged if it will not raise an error or diverge  \emph{and} any chaperones it installs can be discharged.
+
+
+
+
+
+\subsection{Sound chaperone demotion}
 
 Much of the run-time overhead of chaperones is shared by impersonators.
 Nevertheless, the enforcement of invariants specific to chaperones is somewhat costly --- specifically, the enforcement that chaperone guards at most install chaperones on their arguments.
@@ -61,9 +164,7 @@ If one of a site's chaperones is installed on the argument of a chaperone guard,
 
 For instance, the program
 \begin{schemedisplay}
-(let ([sabotage (chap-op
-                 (LAMBDA (f) f)
-                 (LAMBDA (f) (chap-op f (LAMBDA (x) (raise)))))])
+(let ([sabotage (chap-op (LAMBDA (f) f) (LAMBDA (f) (chap-op f raise)))])
   (let ([g (sabotage (LAMBDA (x) x))])
     (g 1)))
 \end{schemedisplay}
@@ -98,6 +199,27 @@ A chaperoned operator is \emph{active} at a control point if evaluation is withi
 \end{definition}
 
 Chaperone guards may themselves invoke chaperoned operators, so there may be more than one active chaperone at any given time.
+
+\subsection{Dependence}
+
+Harrison~\cite{harrison1989interprocedural} characterizes the principle of dependence of procedures on resources.
+It states, roughly, that, in the absence of tail-call optimization, any procedures with a live frame on the stack at a point of resource access \emph{depend} on that resource.
+%A definition of dependence without the tail-call optimization assumption is incomplete as there could be procedures which haven't returned (and should still be considered active from the perspective of dependence) but will not return as they are subsumed by a tail call.
+Assuming degenerate tail-call behavior simply ensures that every procedure will return explicitly so that the stack represents a complete set of dependent procedures.
+
+We reverse the notion of dependence to say that certain control events depend on the active procedures on the stack.
+With our ultimate goal being to prevent chaperone installation, we are only concerned with the chaperone guard procedures depended upon at each point of interest.
+Even in the presence of tail-call optimization, as in \chapcalc, the presence of active chaperone guard procedures is always recorded on the stack, and we can apply Harrison's dependence reasoning fairly directly.
+
+%Dependence for our purposes here is defined in terms of active chaperoned operators.
+%Specifically, we are interested in which chaperone guard procedures are currently active and we reverse the notion of dependence to 
+
+%The assumption of degenerate tail-call behavior ensures that all procedures which haven't returned are included
+%We base our notion of dependence on the principle of dependence of Harrison~\cite{harrison1989interprocedural} which, roughly, is that procedures active at the point of resource access are \emph{dependent} on that resource.
+%This principle assumes the absence of tail-call optimization; a procedure depends on the resource even if its activation frame was subsumed by a tail call.
+%We reverse the relationship before applying it to chaperone installation and error assertion: the creation of a chaperone or assertion of an error depends on all procedures active at that point.
+%Our calculus ``optimizes'' tail calls and we consider procedures subsumed to be dependent also.
+%However, we are concerned only with which chaperone guards are dependent on one of these things, and they leave evidence of their invocation on the stack--even in the presence of proper tail-call optimization--until their continuation is accessed.
 
 \begin{definition}
 A chaperoned operator $c_{\ell_1}$ \emph{depends} on a chaperoned operator $c_{\ell_0}$ if $c_{\ell_0}$ is active at the point that the chaperone $c_{\ell_1}$ is installed.

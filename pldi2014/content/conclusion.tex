@@ -13,35 +13,35 @@ If only promoted or discharged chaperones flow to it, we can replace it with the
 We also must contend with the \scheme{chaperone?} and \scheme{impersonator?} predicates. We can apply similar reasoning to integrate them into our original analysis.
 Given that Racket programmers are discouraged from using them, we don't expect them to regularly upend our analysis, but of course we must account for them.
 
-\section{Next}
+%\section{Next}
 
-Not changing complexity, the time factor is less pernicious, but it is hard not to think of the waste effected by the application of a sequence of idempotent operators.
+%Not changing complexity, the time factor is less pernicious, but it is hard not to think of the waste effected by the application of a sequence of idempotent operators.
 
-Now the programmer wants to define his own contract predicates \scheme{even?} and \scheme{odd?}. Aware of the cost of contracts on tail-recursive functions, he opts against their use.
-\begin{schemedisplay}
-(define (even? n)
-  (if (= n 0)
-      #t
-      (odd? (- n 1))))
-      
-(define (odd? n)
-  (if (= n 1)
-      #t
-      (even? (- n 1))))
-\end{schemedisplay}
-for use in the definition
-\begin{schemedisplay}
-(define/contract (partial-succ n)
-  (odd? . -> . even?)
-  (+ n 1))
-\end{schemedisplay}
-which calculates the successor only for odd numbers.
+%Now the programmer wants to define his own contract predicates \scheme{even?} and \scheme{odd?}. Aware of the cost of contracts on tail-recursive functions, he opts against their use.
+%\begin{schemedisplay}
+%(define (even? n)
+%  (if (= n 0)
+%      #t
+%      (odd? (- n 1))))
+%      
+%(define (odd? n)
+%  (if (= n 1)
+%      #t
+%      (even? (- n 1))))
+%\end{schemedisplay}
+%for use in the definition
+%\begin{schemedisplay}
+%(define/contract (partial-succ n)
+%  (odd? . -> . even?)
+%  (+ n 1))
+%\end{schemedisplay}
+%which calculates the successor only for odd numbers.
 
-What is the result of the call \scheme{(partial-succ 0)}?
-The programmer hopes a contract violation will be detected with blame assigned to the caller.
-Instead, his program never halts.
+%What is the result of the call \scheme{(partial-succ 0)}?
+%The programmer hopes a contract violation will be detected with blame assigned to the caller.
+%Instead, his program never halts.
 
-Now suppose the programmer recruits \scheme{odd?} and \scheme{even?} as contract predicates but, as happens with , fails to implement odd? correctly inst
+%Now suppose the programmer recruits \scheme{odd?} and \scheme{even?} as contract predicates but, as happens with , fails to implement odd? correctly inst
 
 
 %It takes time to determine compliance of first-order values as first-order contracts can be arbitrary predicates.

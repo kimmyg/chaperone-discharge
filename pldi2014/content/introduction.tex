@@ -35,8 +35,8 @@ This contracted procedure behaves as if it were written
     (positive-integer/c a))))
 \end{schemedisplay}
 where \scheme{positive-integer/c} and \scheme{nonnegative-integer/c} are procedures which raise an error if their argument does not belong to the domain reflected by the procedure's name.
-Written in this way, it is apparent that \scheme{fac} is not tail-recursive.
-Instead, the context grows with every recursive call so that \scheme{(fact 6 1)} reduces as
+Written in this way, it is apparent that \scheme{fact} is not tail-recursive.
+Instead, its context grows with every recursive call so that \scheme{(fact 6 1)} reduces as
 \begin{schemedisplay}
 (fact 6 1)
 (positive-integer/c (fact 5 6))
@@ -50,7 +50,7 @@ The attachment of these contracts has transformed a constant-space algorithm int
 Thus, a simple contract ascription can upset our performance expectations for even simple procedures.
 
 As contract specifications become more elaborate, they become more susceptible to error.
-In contract systems, such as Racket's~\cite{plt-tr1}, which allow arbitrary predicate procedures written in the source language itself to serve as specifications, this error is effected by the programmer.
+In contract systems, such as Racket's~\cite{findler2002contracts}, which allow arbitrary predicate procedures written in the source language itself to serve as specifications, this error is effected by the programmer.
 It is only natural, then, to contract these procedures as well, an act which aides error diagnosis but compounds the run-time cost of contracts.
 In these systems, execution time of the program proper can be dwarfed by that of the enforcement of its specification (in one case accounting for 96\% of total execution time) \cite{strickland2012chaperones}.
 
@@ -77,7 +77,7 @@ At this level, contracts are manifest in terms of \emph{interposition} primitive
 
 Recent advances in higher-order program analysis \cite{earl2012introspective} provide perfectly precise return flow and allow the form of the stack to be approximated at each control point in the program.
 The original purpose of this approximation was to provide an abstract garbage collector a conservative set of live frames.
-We repurpose this capability to analyze a notion of dependence similar to that of Might and Prabhu~\cite{might2009interprocedural} allowing us to judge the safe removal of dynamic contracts \emph{even when the installation of other contracts depends on them}.
+We repurpose this capability to analyze a notion of dependence similar to that of Harrison~\cite{harrison1989interprocedural} allowing us to judge the safe prevention of dynamic contract installation---that is, contracts \emph{installed} at run time---\emph{even when the installation of other contracts depends on them}.
 The expressiveness of Racket's contract language admits dynamic checks which diverge, so we must integrate a termination analysis based on Sereni's~\cite{sereni2007termination} that informs the discharge of dependently-installed contracts.
 
 We proceed as follows:
@@ -86,5 +86,7 @@ We introduce the syntax and semantics of \chapcalc, a core calculus with facilit
 We present two theorems which establish the conditions for the safe removal or weakening of interposition in Section 4.
 We present a static analysis which can judge when these conditions hold in Section 5.
 We discuss the influence of parameters of the analysis on precision and performance in Section 6.
-We discuss some Racket language features which require more care to integrate with the present analysis in Section 7.
-We conclude by discussing the future application and direction of this work in Section 8.
+%We discuss some Racket language features which require more care to integrate with the present analysis in Section 7.
+We discuss related work in Section 7.
+We conclude by discussing the integration of some Racket language features with this analysis in Section 8.
+%future application and direction of this work in Section 8.
