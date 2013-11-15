@@ -128,8 +128,10 @@ A program is a term in the grammar with no free variables and in which all ident
 \newcommand{\serr}[3]{\mathbf{error}(#1,#2,#3)}
 \newcommand{\sbla}[2]{\mathrm{blame}_{#1}(#2)}
 \newcommand{\app}[4]{\mathrm{apply}(#1,#2,#3,#4)}
-\newcommand{\red}[2]{\begin{equation}\begin{aligned}& #1\\\rr\, & #2\end{aligned}\end{equation}}
-\newcommand{\reda}[2]{$#1\rr#2$}
+\newcommand{\reda}[2]{\begin{equation}\begin{aligned}& #1\\\rr\, & #2\end{aligned}\end{equation}}
+\newcommand{\red}[2]{$#1\rr#2$}
+\newcommand{\redtwo}[5]{\begin{math}#1\rr\begin{cases}#2 & #3\\ #4 & #5\end{cases}\end{math}}
+\newcommand{\redthr}[7]{\begin{math}#1\rr\begin{cases}#2 & #3\\ #4 & #5\\#6 & #7\end{cases}\end{math}}
 
 
 \newcommand{\clo}[2]{\nttwo{clos}{#1}{#2}}
@@ -145,6 +147,11 @@ A program is a term in the grammar with no free variables and in which all ident
 \newcommand{\chacwk}[2]{\ntthr{chap\mhyphen neg}{\ell}{#1}{#2}}
 \newcommand{\chacfk}[1]{\nttwo{chap\mhyphen fun}{\ell}{#1}}
 \newcommand{\chacrk}[1]{\nttwo{chap\mhyphen pos}{\ell}{#1}}
+
+\newcommand{\blame}[1]{\ensuremath{\mathrm{blame}(#1)}}
+\newcommand{\impblame}[1]{\ensuremath{\mathrm{imp\mhyphen blame}(#1)}}
+\newcommand{\chablame}[1]{\ensuremath{\mathrm{cha\mhyphen blame}(#1)}}
+\newcommand{\noblame}[0]{\ensuremath{\mathrm{noblame}}}
 
 \newcommand{\rr}{\longrightarrow}
 \newcommand{\rrs}{\longrightarrow^{*}}
@@ -261,9 +268,9 @@ The arity of each primitive procedure is straightforward with two exceptions:
 \stxclasscont{$\schaz{\ks}{\sigma}{\ell}{f}{w}{\vv}$}{chap0}\\
 \stxclasscont{$\schao{\ks}{\sigma}{\ell}{w}{\vv}$}{chap1}\\
 \stxclass{\gamma}{Frame}{\letk{\vx}{\rho}{e}}{let}\\
-\stxclasscont{\impcwk{f}{\vv}}{impersonator negative}\\
-\stxclasscont{\impcfk{w}}{impersonator function}\\
-\stxclasscont{\impcrk{\vv}}{impersonator positive}\\
+\stxclasscont{\impcwk{f}{\vv}}{negative guard}\\
+\stxclasscont{\impcfk{w}}{impersonated procedure}\\
+\stxclasscont{\impcrk{\vv}}{positive guard}\\
 \stxclasscont{\chacwk{f}{\vv}}{chaperone negative}\\
 \stxclasscont{\chacfk{w}}{chaperone function}\\
 \stxclasscont{\chacrk{\vv}}{chaperone positive}\\
@@ -274,7 +281,8 @@ The arity of each primitive procedure is straightforward with two exceptions:
 \stxclasscont{\ntthr{imp}{\ell}{f}{w}}{impersonators}\\
 \stxclasscont{\ntthr{chap}{\ell}{f}{w}}{chaperones}\\
 \stxclasscont{$p$}{primitives}\\
-\stxclass{a}{Addr}{an infinite set of addresses}{}
+\stxclass{a}{Addr}{an infinite set of addresses}{}\\
+\stxclass{b}{Blame}{$\blame{\ell}\,|\,\noblame$}{blame}
 \end{tabular}
 
 \caption{Abstract machine state space for \chapcalc}
@@ -299,61 +307,122 @@ Finally, the $\mathbf{imp_0}$, $\mathbf{imp_1}$, $\mathbf{chap_0}$, and $\mathbf
 
 
 
+
+
+
+
+
+
+
 \begin{figure*}
 \subsubsection{Application}
 
 \noindent
-\reda{\sexp{\ks}{\sigma}{\rho}{\appe{\ae_f}{\ae_1\,\dots\,\ae_n}}}{\sapp{\ks}{\sigma}{f}{\langle v_1,\dots,v_n\rangle}}
+\red{\sexp{\ks}{\sigma}{\rho}{\appe{\ae_f}{\ae_1\,\dots\,\ae_n}}}{\sapp{\ks}{\sigma}{f}{\langle v_1,\dots,v_n\rangle}}
 where $f=\A{\sigma}{\rho}{\ae_f}$ and $v_i=\A{\sigma}{\rho}{\ae_i}$ for $i=1,\dots,n$.
 
 \subsubsection{The let Form}
 
+% encounter let form
 \noindent
-\reda{\sexp{\ks}{\sigma}{\rho}{\lete{x_1\,\dots\, x_n}{e_0}{e_1}}}{\sexp{\letk{\vx}{\rho}{e_1}::\ks}{\sigma}{\rho}{e_0}} where $\vx=\langle x_1,\dots,x_n\rangle$.
+\red{\sexp{\ks}{\sigma}{\rho}{\lete{x_1\,\dots\, x_n}{c}{e}}}{\sexp{\letk{\vx}{\rho}{e}::\ks}{\sigma}{\rho}{c}}
+where $\vx=\langle x_1,\dots,x_n\rangle$.
 
-\reda{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}{\sexp{\ks}{\sigma'}{\rho'}{e_1}}
-where $(\sigma',\rho')=\bind{\vx}{\vv}$ if $|\vx|=|\vv|$
 
-\reda{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}{\dynbla{\ks}}
-if $|\vx|\ne|\vv|$
+\redtwo{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}
+       {\sexp{\ks}{\sigma'}{\rho'}{e_1}}{\mbox{if }|\vx|=|\vv|}
+       {\serr{\ks}{\sigma}{\noblame}}{\mbox{if }|\vx|\ne|\vv|}
+where $(\sigma',\rho')=\bind{\vx}{\vv}$     
 
-\subsubsection{The let Form}
+\subsubsection{if}
 
-\reda{\sexp{\ks}{\sigma}{\rho}{\ife{\ae_t}{e_c}{e_a}}}{\sexp{\ks}{\sigma}{\rho}{e_c}}
-if $v_t\ne\false$
+\redtwo{\sexp{\ks}{\sigma}{\rho}{\ife{\ae_t}{e_c}{e_a}}}
+       {\sexp{\ks}{\sigma}{\rho}{e_c}}{\mbox{if }v_t\ne\false}
+       {\sexp{\ks}{\sigma}{\rho}{e_a}}{\mbox{if }v_t=\false}
 where $v_t=\A{\sigma}{\rho}{\ae_t}$.
 
-\reda{\sexp{\ks}{\sigma}{\rho}{\ife{\ae_t}{e_c}{e_a}}}{\sexp{\ks}{\sigma}{\rho}{e_a}}
-if $v_t=\false$
-where $v_t=\A{\sigma}{\rho}{\ae_t}$.
+\subsection{apply}
+
+\subsubsection{closure}
+
+\redtwo{\sapp{\ks}{\sigma}{\clo{\lame{x_1\,\dots\,x_n}{e}}{\rho}}{\vv}}
+       {\sexp{\ks}{\sigma'}{\rho'}{e}}{\mbox{if }|\vx|=|\vv|}
+       {\serr{\ks}{\sigma}{\blame{\ell}}}{\mbox{if }|\vx|\ne|\vv|}
+where $\vx=\langle x_1,\dots,x_n\rangle$ and $(\sigma',\rho')=\bind{\vx}{\vv}$
+
+\subsubsection{impersonator}
+
+\red{\sapp{\ks}{\sigma}{\imp{f}{w}}{\vv}}{\sapp{\impcwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}
+
+
+\redtwo{\sval{\impcwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}
+       {\simpz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\mbox{if }|\vv|=|\vvp|\mbox{ and } \mathrm{operator?}(w)\mbox{,}}
+       {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ but not }\mathrm{operator?}(w)\mbox{.}}
+
+\redtwo{\sval{\impcwk{f}{\vv}::\ks}{\sigma}{\vvp}}
+       {\sapp{\ks}{\sigma}{f}{\vvp}}{\mbox{if }|\vv|=|\vvp|\mbox{,}}
+       {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|\ne|\vvp|\mbox{.}}
+
+\red{\simpz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\sapp{\impcfk{w}::\ks}{\sigma}{f}{\vvp}}
+
+\red{\sval{\impcfk{w}::\ks}{\sigma}{\vv}}{\simpo{\ks}{\sigma}{w}{\vv}{\ell}}
+
+\red{\simpo{\ks}{\sigma}{w}{\vv}{\ell}}{\app{\impcrk{\vv}::\ks}{\sigma}{w}{\vv}}
+
+\redtwo{\sval{\impcrk{\vv}::\ks}{\sigma}{\vvp}}
+       {\sval{\ks}{\sigma}{\vvp}}{\mbox{if }|\vv|=|\vvp|\mbox{,}}
+       {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|\ne|\vvp|\mbox{ and }|\vv|+1\ne|\vvp|\mbox{.}}
+
+
+\subsubsection{chaperone}
+
+\red{\sapp{\ks}{\sigma}{\cha{f}{w}}{\vv}}{\sapp{\chacwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}
+
+
+\redthr{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}
+       {\schaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\mbox{if }|\vv|=|\vvp|\mbox{, } \mathrm{operator?}(w)\mbox{, and }\chapof{\vvp}{\vv}\mbox{,}}
+       {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ but not }\mathrm{operator?}(w)\mbox{,}}
+       {\serr{\ks}{\sigma}{\chablame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ and }\mathrm{operator?}(w)\mbox{ but not }\chapof{\vvp}{\vv}\mbox{.}}
+
+
+\redthr{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}
+       {\sapp{\ks}{\sigma}{f}{\vvp}}{\mbox{if }|\vv|=|\vvp|\mbox{ and }\chapof{\vvp}{\vv}\mbox{,}}
+       {\serr{\ks}{\sigma}{\chablame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ but not }\chapof{\vvp}{\vv}\mbox{,}}
+       {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|\ne|\vvp|\mbox{ and }|\vv|+1\ne|\vvp|\mbox{.}}
+
+
+\red{\schaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\sapp{\chacfk{w}::\ks}{\sigma}{f}{\vvp}}
+
+\red{\sval{\chacfk{w}::\ks}{\sigma}{\vv}}{\schao{\ks}{\sigma}{w}{\vv}{\ell}}
+
+\red{\schao{\ks}{\sigma}{w}{\vv}{\ell}}{\app{\chacrk{\vv}::\ks}{\sigma}{w}{\vv}}
+
+\redthr{\sval{\chacrk{\vv}::\ks}{\sigma}{\vvp}}
+       {\sval{\ks}{\sigma}{\vvp}}{\mbox{if }|\vv|=|\vvp|\mbox{ and }\chapof{\vvp}{\vv}\mbox{,}}
+       {\serr{\ks}{\sigma}{\chablame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ but not }\chapof{\vvp}{\vv}\mbox{,}}
+       {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|\ne|\vvp|\mbox{.}}
+
+\subsubsection{primitive}
+\red{\sapp{\ks}{\sigma}{p}{\vv}}{\sval{\ks}{\sigma}{\delta(p,\vv)}}
+if $\delta(p,\vv)=\vvp$ for some $\vvp$.
+
+\red{\sapp{\ks}{\sigma}{p}{\vv}}{\serr{\ks}{\sigma}{\delta(p,\vv)}}
+if $\delta(p,\vv)=b$ for some $b$.
 \end{figure*}
 
 
 
 
 
+
+
+
+
+
+
 \subsubsection{Application}
 
-\noindent
-\red{\sexp{\ks}{\sigma}{\rho}{\appe{\ae_f}{\ae_1\,\dots\,\ae_n}}}{\sapp{\ks}{\sigma}{f}{\langle v_1,\dots,v_n\rangle}}
-
-\noindent
-where $f=\A{\sigma}{\rho}{\ae_f}$ and $v_i=\A{\sigma}{\rho}{\ae_i}$ for $i=1,\dots,n$.
-
 \subsubsection{The let Form}
-
-\noindent
-\red{\sexp{\ks}{\sigma}{\rho}{\lete{x_1\,\dots\, x_n}{e_0}{e_1}}}{\sexp{\letk{\vx}{\rho}{e_1}::\ks}{\sigma}{\rho}{e_0}}
-
-\noindent
-where $\vx=\langle x_1,\dots,x_n\rangle$.
-
-\red{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}{\sexp{\ks}{\sigma'}{\rho'}{e_1}}
-
-\noindent
-where $(\sigma',\rho')=\bind{\vx}{\vv}$ if $|\vx|=|\vv|$
-
-\red{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}{\dynbla{\ks}} if $|\vx|\ne|\vv|$
 
 \subsubsection{if}
 
@@ -373,51 +442,17 @@ where $v_t=\A{\sigma}{\rho}{\ae_t}$.
 
 The application of a closure operator proceeds straightforwardly by extending its environment and evaluating its body.
 
-\red{\sapp{\ks}{\sigma}{\clo{\lame{x_1\,\dots\,x_n}{e}}{\rho}}{\vv}}{\sexp{\ks}{\sigma'}{\rho'}{e}}
-if $|\vx|=|\vv|$ where $\vx=\langle x_1,\dots,x_n\rangle$ and $(\sigma',\rho')=\bind{\vx}{\vv}$
-
 If the number of values applied is incompatible with the arity of the closure, blame is assigned dynamically.
-
-\red{\sapp{\ks}{\sigma}{\clo{\lame{x_1\,\dots\,x_n}{e}}{\rho}}{\vv}}{\dynbla{\ks}}
-if $|\vx|\ne|\vv|$ where $\vx=\langle x_1,\dots,x_n\rangle$
 
 \subsubsection{impersonator}
 
 Impersonator application recurs on its guard and augments the context to complete the interposition when its guard returns.
 The enlarged context is annotated with the label of the applied chaperone (which itself is the label of its installment site).
 
-\red{\sapp{\ks}{\sigma}{\imp{f}{w}}{\vv}}{\sapp{\impcwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}
-
 When the results of its wrapper are obtained, the next state is determined by the results.
 If an additional result is provided and it is an operator, it is situated to intercept procedure results.
 
 If the number of results obtained is the same as the number of arguments given, the interposition ceases and the function can be evaluated in tail position with respect to the chaperone application.
-
-\red{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}{\sapp{\ks}{\sigma}{f}{\vvp}}
-
-\red{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}{\schaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}
-if $|\vv|=|\vvp|$ and $\mathrm{operator?}(w)$.
-
-\red{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}{\sbla{3}{\ell}}
-if $|\vv|=|\vvp|$ but $\mathrm{operator?}(w)$ does not hold.
-
-\red{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}{\sbla{4}{\ell}}
-if $|\vv|\ne|\vvp|$ and $|\vv|+1\ne|\vvp|$.
-
-\red{\simpz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\sapp{\impcfk{w}::\ks}{\sigma}{f}{\vvp}}
-
-\red{\sval{\impcfk{w}::\ks}{\sigma}{\vv}}{\simpo{\ks}{\sigma}{w}{\vv}{\ell}}
-
-\red{\simpo{\ks}{\sigma}{w}{\vv}{\ell}}{\app{\impcrk{\vv}::\ks}{\sigma}{w}{\vv}}
-
-
-
-
-\red{\sval{\impcrk{\vv}::\ks}{\sigma}{\vvp}}{\sval{\ks}{\sigma}{\vvp}}
-if $|\vv|=|\vvp|$
-
-\red{\sval{\impcrk{\vv}::\ks}{\sigma}{\vvp}}{\serr{\ks}{\sigma}{?}}
-if $|\vv|\ne|\vvp|$
 
 [That the number of arguments received is the same as the number given is ensured.]
 
@@ -428,59 +463,10 @@ if $|\vv|\ne|\vvp|$
 Chaperone application recurs on its guard and augments the context to complete the interposition when its guard returns.
 The enlarged context is annotated with the label of the applied chaperone (which itself is the label of its installment site).
 
-\red{\sapp{\ks}{\sigma}{\cha{f}{w}}{\vv}}{\sapp{\chacwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}
-
 When the results of its wrapper are obtained, the next state is determined by the results.
 If an additional result is provided and it is an operator, it is situated to intercept function results.
 
 If the number of results obtained is the same as the number of arguments given, the interposition ceases and the function can be evaluated in tail position with respect to the chaperone application.
-
-\red{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}{\sapp{\ks}{\sigma}{f}{\vvp}}
-if $|\vv|=|\vvp|$ and $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$
-
-\red{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}{\sbla{1}{\ell}}
-if $|\vv|=|\vvp|$ but $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$ does not hold.
-
---
-
-\red{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}{\schaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}
-if $|\vv|=|\vvp|$, $\mathrm{operator?}(w)$, and $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$
-
-\red{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}{\sbla{3}{\ell}}
-if $|\vv|=|\vvp|$ but $\mathrm{operator?}(w)$ does not hold.
-
-\red{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}{\sbla{1}{\ell}}
-if $|\vv|=|\vvp|$ and $\mathrm{operator?}(w)$ but $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$ does not hold.
-
---
-
-\red{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}{\sbla{4}{\ell}}
-if $|\vv|\ne|\vvp|$ and $|\vv|+1\ne|\vvp|$
-
-\red{\schaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\sapp{\chacfk{w}::\ks}{\sigma}{f}{\vvp}}
-
-\red{\sval{\chacfk{w}::\ks}{\sigma}{\vv}}{\schao{\ks}{\sigma}{w}{\vv}{\ell}}
-
-\red{\schao{\ks}{\sigma}{w}{\vv}{\ell}}{\app{\chacrk{\vv}::\ks}{\sigma}{w}{\vv}}
-
-
-
-
-\red{\sval{\chacrk{\vv}::\ks}{\sigma}{\vvp}}{\sval{\ks}{\sigma}{\vvp}}
-if $|\vv|=|\vvp|$ and $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$
-
-\red{\sval{\chacrk{\vv}::\ks}{\sigma}{\vvp}}{\sbla{7}{\ell}}
-if $|\vv|=|\vvp|$ but $\mathrm{chaperone\mhyphen of?}(\vvp,\vv)$ does not hold
-
-\red{\sval{\chacrk{\vv}::\ks}{\sigma}{\vvp}}{\sbla{6}{\ell}}
-if $|\vv|\ne|\vvp|$
-
-\subsubsection{primitive}
-\red{\sapp{\ks}{\sigma}{p}{\vv}}{\sval{\ks}{\sigma}{\delta(p,\vv)}}
-if $\delta(p,\vv)=\vvp$ for some $\vvp$.
-
-\red{\sapp{\ks}{\sigma}{p}{\vv}}{\serr{\ks}{\sigma}{\delta(p,\vv)}}
-if $\delta(p,\vv)=b$ for some $b$.
 
 [DEFINE BLAME!]
 
