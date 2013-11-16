@@ -1,0 +1,53 @@
+\section{Evaluation}
+
+It is difficult to assess the effectiveness of our analysis since interesting programs tend to use Racket features presently unsupported.
+(We discuss limitations and strategies to overcome them in Section~\ref{sec:limitations}.)
+
+We will consider a few cases which highlight its particular effectiveness.
+
+First, we apply it to our motivating example of the cost problem, the factorial program with ``deeply-installed'' chaperones.
+This example highlights the importance of choosing a good abstract domain for base values as the coincidence of the structure of the abstract domain with the boundaries of contract domains can significantly influence the precision of the analysis.
+
+In our running \scheme{fact} example, abstracting the integers to a singleton domain by way of the definition $\alpha(n)=\bullet$ for $\bullet$ the sole element prevents the analysis from discharging a single chaperone.
+It does admit that the chaperone can be demoted, but that does not remove the space cost that motivated the need for such an analysis in the first place.
+However, by abstracting integers to the domain of signs defined by
+\begin{equation*}
+\alpha(n)=\begin{cases}\{-\} &\mbox{if }n<0\mbox{,}\\\{0\} &\mbox{if }n=0\mbox{,}\\\{+\} &\mbox{if }n>0\mbox{,}\end{cases}
+\end{equation*}
+and abstracting arithmetic primitives in the obvious way, our analysis can discharge the chaperone completely (assuming that constraint information is propagated over conditionals).
+This effects a 70\% decrease in time cost of this procedure.
+
+However, this example does not assess the effectiveness of the analysis of higher-order chaperone discharge.
+To do so, we perform it on a version of the chaperoned factorial program which uses Church numerals, originally used by Strickland et al.~\cite{strickland2012chaperones} to benchmark the performance impact of chaperones.
+
+This program makes heavy use of a chaperone-installation wrapper \scheme{->} to treat contract installation like contract ascription.
+Using the Racket contract definitions of \scheme{any/c} as \scheme{(LAMBDA (x) x)} and \scheme{any} as \scheme{values}, the program also makes heavy use of the custom \scheme{church/c} contract defined as \scheme{(-> (-> any/c any) (-> any/c any))}.
+Church numerals are chaperoned by the wrapper \scheme{(-> church/c church/c)}.
+In short, higher-order chaperones abound in this small program.
+
+Because all chaperone installation is directed through the \scheme{->} operator, there is only one chaperone-installation site in the program.
+We therefore inline its definition to allow a more granular analysis increasing the number of sites to 10.
+This is ultimately unnecessary as the analysis is able to discharge every site.
+For the evaluation of \scheme{(fac 6)}, chaperoning accounts for just under 90\% of the time cost.
+
+
+%Because higher-order contracts often refine domains, the choice of abstraction function can have significant ramifications for the precision of the analysis.
+%For instance, an analysis of the program
+%\begin{schemedisplay}
+%(letrec ([(fact) (values (LAMBDA (n)
+%                          (let ([test0 (= n 0)])
+%                            (if test0
+%                                1
+%                                (let ([(n-1) (- n 1)])
+%                                  (let ([(rec) (fact n-1)])
+%                                    (* n rec)))))))])
+%  (let ([(fact) (-> fact nonnegative? positive?)])
+%    (fact 5)))
+%\end{schemedisplay}
+%using a singleton domain [?] for integers will fail to discharge the chaperone.
+%A domain which distinguishes values coincident with the edges of the contract would be able to.
+
+
+%\begin{tabular}{
+
+%\end{tabular}

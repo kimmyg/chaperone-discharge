@@ -58,9 +58,9 @@ The moderation of these costs has been studied extensively.
 Herman et al.~\cite{herman2010space} observed the potential accumulation of casts in the blame calculus---similar in principle to the accumulation of guards by our contracted \scheme{fact} procedure---and applied the coercion calculus of Henglein~\cite{henglein1994dynamic} to compact them.
 Siek and Wadler~\cite{siek2010threesomes} consider the same problem and apply their own solution of \emph{threesomes}.
 Siek et al.~\cite{siek2006gradual} explicate type systems which allow \emph{gradual typing} in which they provide a low-cost path from dynamically- to statically-checked invariants.
-Flanagan and Knowles~\cite{flanagan2006hybrid} introduce \emph{hybrid type checking} in which static analysis is used to establish contract compliance statically where possible and insert dynamic checks where not.
-%Using this final approach, a disciplined programmer enjoys the early safety guarantees and performance characteristics of statically-verified code or suffers the cost of belated error detection of dynamically-checked specifications.
 
+The approach we adopt is most similar to Flanagan and Knowles'~\cite{flanagan2006hybrid} \emph{hybrid type checking} in which static analysis is used to establish contract compliance statically where possible and insert dynamic checks where not.
+%Using this final approach, a disciplined programmer enjoys the early safety guarantees and performance characteristics of statically-verified code or suffers the cost of belated error detection of dynamically-checked specifications.
 Unfortunately, modular development can impede these analyses because the greatest amount of knowledge a module can have about its imports \emph{is} their behavioral contract.\footnote{Indeed, it can be less than this, as when the behavioral specification is not codified entirely within the program.}
 For example, recognizing that contracts constitute total formal knowledge, Tobin-Hochstadt and Van Horn \cite{tobin2012higher} conduct an intra-module analysis which identifies extra-module references with opaque values that satisfy their contract.
 % also, contracts are attached to values that flow across module boundaries.
@@ -78,7 +78,7 @@ At this level, contracts are manifest in terms of \emph{interposition} primitive
 Recent advances in higher-order program analysis \cite{earl2012introspective} provide perfectly precise return flow and allow the form of the stack to be approximated at each control point in the program.
 The original purpose of this approximation was to provide an abstract garbage collector a conservative set of live frames.
 We repurpose this capability to analyze a notion of dependence similar to that of Harrison~\cite{harrison1989interprocedural} allowing us to judge the safe prevention of dynamic contract installation---that is, contracts \emph{installed} at run time---\emph{even when the installation of other contracts depends on them}.
-The expressiveness of Racket's contract language admits dynamic checks which diverge, so we must integrate a termination analysis based on Sereni's~\cite{sereni2007termination} that informs the discharge of dependently-installed contracts.
+The expressiveness of Racket's contract language admits partial dynamic checks, so we must integrate a termination analysis based on Sereni's~\cite{sereni2007termination} that informs the discharge of dependently-installed contracts.
 
 We proceed as follows:
 We discuss interposition and its relationship to behavioral contracts in more depth in Section 2.
@@ -87,6 +87,6 @@ We present two theorems which establish the conditions for the safe removal or w
 We present a static analysis which can judge when these conditions hold in Section 5.
 We discuss the influence of parameters of the analysis on precision and performance in Section 6.
 %We discuss some Racket language features which require more care to integrate with the present analysis in Section 7.
-We discuss related work in Section 7.
-We conclude by discussing the integration of some Racket language features with this analysis in Section 8.
-%future application and direction of this work in Section 8.
+%We discuss related work in Section 7.
+We discuss the integration of other Racket language features with this analysis in Section~\ref{sec:limitations}.
+We conclude with future application and direction of this work in Section~\ref{sec:conclusion}.

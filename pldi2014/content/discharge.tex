@@ -49,7 +49,7 @@ This theorem establishes that a program with chaperoned values which evaluates s
 In essence, the theorem bounds the influence chaperones can have on correct programs.
 
 We are after a similar result for chaperoned procedures which will allow us to identify meaningful chaperoned values---values which influence the behavior of the program via chaperoning.
-While chaperoned values do so primarily by raising an error, chaperoned procedures can affect program behavior by diverging.
+While chaperoned values do so primarily by raising an error, chaperoned procedures can also affect program behavior by diverging.
 While we expect that programs will seldom result in divergence, and that specifically at the hand of a chaperoned value, specifications expressed in the source language are susceptible to the same programmer errors as the program proper, which includes unintended partiality.
 
 Consider the subtle error in the program
@@ -84,7 +84,7 @@ This example illustrates the need to include divergence in the set of effects a 
 
 If a specific chaperoned value is not meaningful in a particular execution, it can be soundly \emph{discharged}, meaning that it is safe to replace its particular installation with identity if it is possible to do so.
 (The soundness claim does not say it is necessarily possible---only safe---to do so.)
-A chaperone is meaningful if
+The conditions for a chaperone to be meaningful are
 \begin{enumerate}
 \item the negative guard causes an error to be raised,
 \item \label{con:neg-divergence} the negative guard diverges,
@@ -107,49 +107,50 @@ A chaperone is meaningful if
 
 We discharge a chaperone by replacing the operator at its point of installation with \scheme{(LAMBDA (x y) x)}; discharge is accomplished by discarding the guard procedure in lieu of attaching it.
 
-This strategy immediately shifts our focus from dynamic points of installation to static points of installation in the following way:
+This strategy immediately shifts our focus from dynamic to static points of installation in the following way:
 First, chaperone installation may not be the only operation performed at a call site.
 Thus, we must restrict ourselves to call sites dedicated to that purpose.
-Second, even once we have restricted ourselves to bonafide chaperone-installation sites, there may be more than one chaperone installed at each site.
+Second, even once we have restricted ourselves to only chaperone-installation sites, there may be more than one chaperone installed at each site.
 Thus, we must restrict ourselves to sites at which no meaningful chaperone is installed.
 Finally, we must extend these conditions from a particular execution to all possible executions.
+
 % multiple operations performed at a particular site
 % multiple chaperones installed at a particular site (during one particular execution)
 % the chaper
-First, multiple chaperone installations may occur at a given application site during program execution, so we cannot, in all circumstances, selectively prevent the creation of a single chaperone.
+%First, multiple chaperone installations may occur at a given application site during program execution, so we cannot, in all circumstances, selectively prevent the creation of a single chaperone.
 
-to points of installation
+%to points of installation
 
-This strategy immediately raises three issues.
-Such a strategy affects all executions
+%This strategy immediately raises three issues.
+%Such a strategy affects all executions
 
-Using this approach to discharge, it is clear that chaperone installment at a particular site can be discharged only if it meets these conditions for every possible execution.
+%Using this approach to discharge, it is clear that chaperone installment at a particular site can be discharged only if it meets these conditions for every possible execution.
 These conditions seem onerous.
 Indeed, in Racket, users typically access chaperone installation through a library wrapper so all chaperones in the entire program share the same installation site.
 This, in turn, means that a given chaperone can be safely discharged only if \emph{all} chaperones in all executions of the program can be safely discharged.
 %In other words, the program must be correct up to the encoded specification.
 Fortunately, with access to the whole program, we may inline definitions which allows us to multiply the number of installment sites in the program.
 
-This immediately raises two issues.
+%This immediately raises two issues.
 
-Second, chaperone installation may not be the only operation performed by an application site.
-We address both by analyzing application sites and then only those in which \scheme{chap-op} is the only operator, which we refer to as \emph{chaperone-installation sites}.
-The conditions to discharge a given site are stronger than that of a chaperone installed at that site: instead of demonstrating that a single chaperone is not meaningful, we must demonstrate that every chaperone created at that site is not meaningful \emph{and} that the chaperone installations themselves are not meaningful.
+%Second, chaperone installation may not be the only operation performed by an application site.
+%We address both by analyzing application sites and then only those in which \scheme{chap-op} is the only operator, which we refer to as \emph{chaperone-installation sites}.
+%The conditions to discharge a given site are stronger than that of a chaperone installed at that site: instead of demonstrating that a single chaperone is not meaningful, we must demonstrate that every chaperone created at that site is not meaningful \emph{and} that the chaperone installations themselves are not meaningful.
 
 % in every chaperone installation at that site, the chaperoning procedure has the same arity [LOOK AT THIS] as the to-be-chaperoned procedure.
 
 
-The conditions necessary for the sound discharge of a chaperone are more easily constructed by considering the conditions sufficient for a chaperone to be meaningful.
-If we can enumerate a complete set of these conditions in the sense that any meaningful chaperone must meet at least one of the conditions, we obtain the soundness conditions by complement.
+%The conditions necessary for the sound discharge of a chaperone are more easily constructed by considering the conditions sufficient for a chaperone to be meaningful.
+%If we can enumerate a complete set of these conditions in the sense that any meaningful chaperone must meet at least one of the conditions, we obtain the soundness conditions by complement.
 
 
 
 
 
-For a given program execution, if neither a chaperone nor its installation raises an error or diverges, it is a candidate for \emph{discharge}, or the targeted prevention of its installation.
-It is only a candidate because its application may cause a meaningful chaperone to be installed, i.e., a chaperone that is not so well-behaved.
-In this case, discharging the original chaperone would prevent a meaningful chaperone from being created which would make discharge unsound.
-Then, intuitively, a chaperone can be discharged if it will not raise an error or diverge  \emph{and} any chaperones it installs can be discharged.
+%For a given program execution, if neither a chaperone nor its installation raises an error or diverges, it is a candidate for \emph{discharge}, or the targeted prevention of its installation.
+%It is only a candidate because its application may cause a meaningful chaperone to be installed, i.e., a chaperone that is not so well-behaved.
+%In this case, discharging the original chaperone would prevent a meaningful chaperone from being created which would make discharge unsound.
+%Then, intuitively, a chaperone can be discharged if it will not raise an error or diverge  \emph{and} any chaperones it installs can be discharged.
 
 
 
@@ -157,11 +158,16 @@ Then, intuitively, a chaperone can be discharged if it will not raise an error o
 
 \subsection{Sound chaperone demotion}
 
-Much of the run-time overhead of chaperones is shared by impersonators.
-Nevertheless, the enforcement of invariants specific to chaperones is somewhat costly --- specifically, the enforcement that chaperone guards at most install chaperones on their arguments.
-The conditions to \emph{demote} the set of chaperones installed at a particular site to impersonators (by replacing the \scheme{chap-op} operator with \scheme{imp-op}) are immediately weaker than to discharge the site entirely: we need to demonstrate only that the guards of chaperones installed there do not arbitrarily modify their arguments (conditions 5 and 10 above) for it to be a candidate for demotion.
-If one of a site's chaperones is installed on the argument of a chaperone guard, demoting it to install merely an impersonator will make an otherwise well-behaved chaperone not so.
+It may be that a chaperone is not entirely well-behaved but not in any way unique to chaperones.
+For instance, consider a program with a single chaperone which provokes an error unspecific to chaperones, such as returning too many results from the positive guard.
+Our meaningfulness conditions disqualify this chaperone from discharge, and for good reason---it influences the behavior of the program.
+But, if no other conditions object, we can safely \emph{demote} it to a mere impersonator by replacing \scheme{chap-op} with \scheme{imp-op} at its installation site.
 
+In a program with a plurality of related chaperones, we must be careful, however.
+%Much of the run-time overhead of chaperones is shared by impersonators.
+%Nevertheless, the enforcement of chaperone-specific propertiesinvariants specific to chaperones is somewhat costly---specifically, the enforcement that chaperone guards at most install chaperones on their arguments.
+%The conditions to \emph{demote} the set of chaperones installed at a particular site to impersonators (by replacing the \scheme{chap-op} operator with \scheme{imp-op}) are immediately weaker than to discharge the site entirely: we need to demonstrate only that the guards of chaperones installed there do not arbitrarily modify their arguments (conditions 5 and 10 above) for it to be a candidate for demotion.
+If one of a site's chaperones is installed on the argument of a chaperone guard, demoting it to install merely an impersonator will make an otherwise well-behaved chaperone not so.
 For instance, the program
 \begin{schemedisplay}
 (let ([sabotage (chap-op (LAMBDA (f) f) (LAMBDA (f) (chap-op f raise)))])
@@ -172,8 +178,10 @@ defines a chaperoned procedure \scheme{sabotage} which wraps higher-order argume
 At no point does \scheme{g} violate chaperone-specific restrictions, so it is tempting to alter its installation site (within the guard of \scheme{sabotage}) to merely impersonate the first argument.
 If done, however, the program would fail at the earlier point when \scheme{sabotage} is called which certainly differs in meaning.
 
-This observation provides us with the intuition behind sound site demotion: a chaperone may be demoted if neither of its guards do more than install chaperones on their arguments for all program executions and the chaperone which guard installed it, if any, can be and is demoted. 
-We once again lift the conditions to chaperone-installment sites so that a chaperone-installment site can be demoted if all chaperones installed there in any program execution can be demoted and the installment sites of any installing chaperones can be and are demoted.
+This observation provides us with a sufficient condition for sound chaperone demotion: a chaperone may be demoted if it doesn't provoke a chaperone-specific error and if the chaperone which caused its installation, if any, is soundly demoted.
+We can lift this condition to chaperone-installation sites in a way similar to the discharge condition.
+% neither of its guards do more than install chaperones on their arguments for all program executions and the chaperone which guard installed it, if any, can be and is demoted. 
+%We once again lift the conditions to chaperone-installment sites so that a chaperone-installment site can be demoted if all chaperones installed there in any program execution can be demoted and the installment sites of any installing chaperones can be and a re demoted.
 
 %We use a straightforward pushdown analysis to determine which states can result in error.
 %We use a simple divergence analysis to determine which guards will always terminate.
@@ -207,7 +215,7 @@ It states, roughly, that, in the absence of tail-call optimization, any procedur
 %A definition of dependence without the tail-call optimization assumption is incomplete as there could be procedures which haven't returned (and should still be considered active from the perspective of dependence) but will not return as they are subsumed by a tail call.
 Assuming degenerate tail-call behavior simply ensures that every procedure will return explicitly so that the stack represents a complete set of dependent procedures.
 
-We reverse the notion of dependence to say that certain control events depend on the active procedures on the stack.
+We reverse the notion of dependence to say that certain control points depend on the active procedures on the stack.
 With our ultimate goal being to prevent chaperone installation, we are only concerned with the chaperone guard procedures depended upon at each point of interest.
 Even in the presence of tail-call optimization, as in \chapcalc, the presence of active chaperone guard procedures is always recorded on the stack, and we can apply Harrison's dependence reasoning fairly directly.
 
@@ -225,25 +233,25 @@ Even in the presence of tail-call optimization, as in \chapcalc, the presence of
 A chaperoned operator $c_{\ell_1}$ \emph{depends} on a chaperoned operator $c_{\ell_0}$ if $c_{\ell_0}$ is active at the point that the chaperone $c_{\ell_1}$ is installed.
 \end{definition}
 
-Let $H_c(c_{\ell_1},c_{\ell_0})$ if $c_{\ell_1}$ depends on $c_{\ell_0}$.
+%Let $H_c(c_{\ell_1},c_{\ell_0})$ if $c_{\ell_1}$ depends on $c_{\ell_0}$.
 
 \begin{definition}
 A chaperone-installment site $s_{\ell_1}$ \emph{depends} on a chaperoned operator $c_{\ell_0}$ if a some chaperone $c_{\ell_1}$ depends on $c_{\ell_0}$.
 \end{definition}
 
-Let $H_s(s_{\ell_1},c_{\ell_0})$ if $s_{\ell_1}$ depends on $c_{\ell_0}$.
+%Let $H_s(s_{\ell_1},c_{\ell_0})$ if $s_{\ell_1}$ depends on $c_{\ell_0}$.
 
 \begin{definition}
 An error $e$ \emph{depends} on a chaperoned operator $c_\ell$ if $c_\ell$  is active at the point $e$ is raised.
 \end{definition}
 
-Let $H_e(e,c_\ell)$ if $e$ depends on $c_\ell$.
+%Let $H_e(e,c_\ell)$ if $e$ depends on $c_\ell$.
 
 \begin{definition}
 An error $e$ \emph{depends} on a chaperone installation site $s_\ell$ if \scheme{chap-op} raises $e$ at $s_\ell$.
 \end{definition}
 
-Let $H_e(e,s_\ell)$ if $e$ depends on $s_\ell$.
+%Let $H_e(e,s_\ell)$ if $e$ depends on $s_\ell$.
 
 %We call the most-recently-activated chaperone the \emph{youngest} chaperone.
 %At evaluation time of a chaperone-installment site, we say that the youngest chaperone is \emph{dependent} on the site.
@@ -274,14 +282,14 @@ A program transformation $F$ is sound for a program $p$ if it preserves the mean
 A chaperoned operator $c_\ell$ is \emph{well-behaved} with respect to a program $p$ if it exhibits none of the conditions of that long list.
 \end{definition}
 
-Let $G(c_\ell)$ hold if $c_\ell$ is well-behaved.
+%Let $G(c_\ell)$ hold if $c_\ell$ is well-behaved.
 
 \begin{definition}
 A chaperone $c_{\ell_0}$ is \emph{dischargeable} with respect to a program $p$ if it is well-behaved and for each dependent chaperone $c_{\ell_0}$, $c_{\ell_0}$ is dischargeable.
 \end{definition}
 
-Transitive, reflexive closure of $H_c$ is $\bar{H_c}$,
-then $c_{\ell_0}$ is dischargeable if for all $c_{\ell_1}$ such that $\bar{H_c}(c_{\ell_1},c_{\ell_0})$, $G(c_{\ell_1})$.
+%Transitive, reflexive closure of $H_c$ is $\bar{H_c}$,
+%then $c_{\ell_0}$ is dischargeable if for all $c_{\ell_1}$ such that $\bar{H_c}(c_{\ell_1},c_{\ell_0})$, $G(c_{\ell_1})$.
 
 \begin{definition}
 A chaperone installation site is \emph{dischargeable} with respect to a program $p$ if all chaperones installed there are well-behaved and all dependent chaperone sites of chaperones installed there are dischargeable.
@@ -291,26 +299,26 @@ A chaperone installation site is \emph{dischargeable} with respect to a program 
 If a chaperone-installment site labelled $\ell$ is dischargeable with respect to a program $p$, then $D_\ell$ is sound for $p$.
 \end{theorem}
 
-\begin{proof}
-By induction on the reduction relation.
-Suppose $p\rrs v$.
-Then none of the chaperone guards (or any guard, for that matter) must raise an error.
-Then there is nothing to worry about.
-That is, $D_\ell(p)\rrs v$, where we make no distinction between an operator and a chaperone of it.
+%\begin{proof}
+%By induction on the reduction relation.
+%Suppose $p\rrs v$.
+%Then none of the chaperone guards (or any guard, for that matter) must raise an error.
+%Then there is nothing to worry about.
+%That is, $D_\ell(p)\rrs v$, where we make no distinction between an operator and a chaperone of it.
 
-Suppose $p\Uparrow b$. 
-Then an error must be raised while a chaperone (with $b$ derived from its label) is active.
-Then that chaperone depends on the error.
-Then that chaperone-installment site will not be a candidate for deletion.
-It is not dischargeable.
-Then it's not labelled $\ell$.
-Since this is true for every dependent non-dischargeable site (that it's not labelled $\ell$), then $D_\ell(p)\Uparrow b$.
+%Suppose $p\Uparrow b$. 
+%Then an error must be raised while a chaperone (with $b$ derived from its label) is active.
+%Then that chaperone depends on the error.
+%Then that chaperone-installment site will not be a candidate for deletion.
+%It is not dischargeable.
+%Then it's not labelled $\ell$.
+%Since this is true for every dependent non-dischargeable site (that it's not labelled $\ell$), then $D_\ell(p)\Uparrow b$.
 
-Suppose $p\Uparrow$.
-If the installation or application of a chaperone could cause divergence, it won't be dischargeable.
-Then the chaperone site labelled $\ell$ must not cause divergence.
-Then $D_\ell(p)\Uparrow$.
-\end{proof}
+%Suppose $p\Uparrow$.
+%If the installation or application of a chaperone could cause divergence, it won't be dischargeable.
+%Then the chaperone site labelled $\ell$ must not cause divergence.
+%Then $D_\ell(p)\Uparrow$.
+%\end{proof}
 
 \begin{definition}
 A chaperoned operator is \emph{good0} with respect to a program $p$ if it does not raise a chaperone error.
@@ -331,34 +339,34 @@ That is,
 \end{itemize}
 \end{lemma}
 
-\begin{proof}
-Suppose $p\rrs v$.
-Then no error is thrown in regular execution.
-Because we will not demote a site unless there is no possibility that its result is used by a chaperone, demoting the site will not introduce an error.
-Therefore, $E_\ell(p)\rrs v$ where we make no distinction between an operator and an impersonator of it.
+%\begin{proof}
+%Suppose $p\rrs v$.
+%Then no error is thrown in regular execution.
+%Because we will not demote a site unless there is no possibility that its result is used %by a chaperone, demoting the site will not introduce an error.
+%Therefore, $E_\ell(p)\rrs v$ where we make no distinction between an operator and an impersonator of it.
 
-\end{proof}
+%\end{proof}
 
 \begin{theorem}
 If a chaperone-installment site labelled $\ell$ is demotable with respect to a program $p$, then $E_\ell$ is sound for $p$.
 \end{theorem}
 
-\begin{proof}
-Suppose $p\rrs v$.
-Then no error is thrown in regular execution.
-Because we will not demote a site unless there is no possibility that its result is used by a chaperone, demoting the site will not introduce an error.
-Therefore, $E_\ell(p)\rrs v$ where we make no distinction between an operator and an impersonator of it.
+%\begin{proof}
+%Suppose $p\rrs v$.
+%Then no error is thrown in regular execution.
+%Because we will not demote a site unless there is no possibility that its result is used by a chaperone, demoting the site will not introduce an error.
+%Therefore, $E_\ell(p)\rrs v$ where we make no distinction between an operator and an impersonator of it.
 
 %Suppose $p\Uparrow b$.
 
-\end{proof}
+%\end{proof}
 
-[Is this the right math?]
+%[Is this the right math?]
 
-Let $c_\ell$ denote a chaperone installed at the site $\ell$.
-Let $P_0(c_\ell)$ denote that $c_\ell$ is well-behaved.
-Let $R(c_{\ell_0},c_{\ell_1})$ if $c_{\ell_0}$ depends on $c_{\ell_1}$.
-Let $\bar{R}$ be the transitive, reflexive closure of $R$.
-A chaperone $c_{\ell_0}$ is dischargeable if $\forall c_\ell$ such that $\bar{R}(c_\ell,c_{\ell_0})$, $P_0(c_\ell)$.
-A chaperone-installment site with label $\ell$ is dischargeable if all chaperones $c_{\ell_0}$ are dischargeable for $\ell_0=\ell$.
+%Let $c_\ell$ denote a chaperone installed at the site $\ell$.
+%Let $P_0(c_\ell)$ denote that $c_\ell$ is well-behaved.
+%Let $R(c_{\ell_0},c_{\ell_1})$ if $c_{\ell_0}$ depends on $c_{\ell_1}$.
+%Let $\bar{R}$ be the transitive, reflexive closure of $R$.
+%A chaperone $c_{\ell_0}$ is dischargeable if $\forall c_\ell$ such that $\bar{R}(c_\ell,c_{\ell_0})$, $P_0(c_\ell)$.
+%A chaperone-installment site with label $\ell$ is dischargeable if all chaperones $c_{\ell_0}$ are dischargeable for $\ell_0=\ell$.
 %For a chaperone-installment site with label $\ell$, let $P_0(\ell)$ hold when $\forall c_\ell

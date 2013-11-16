@@ -1,13 +1,13 @@
 \section{Static Analysis}
 
-In order to build an approximation of the creation relation and misbehaving set across all possible executions, we perform an abstract interpretation of the program.
+In order to build an approximation of the creation relation and meaningful chaperone set across all possible executions, we perform an abstract interpretation of the program.
 Introspective pushdown analysis~\cite{earl2012introspective} is a recent development in the abstract interpretation of higher-order programs which characterizes the control flow graph in terms of a pushdown system.
 In this characterization, pushdown system states represent abstract control states and the pushdown system stack represents the abstract control stack of the program interpretation.
 An abstract interpretation then ultimately takes the form of a directed graph in which edges are labelled with stack changes.
 
 The analysis is deemed introspective because it maintains a conservative approximation of active stack frames for each control state as the abstract control graph is constructed.
 This set of frames is used to root an abstract garbage collector that discards stale bindings increasing both the precision and performance of the analysis.
-We use this set to build approximations of both the creation relation and misbehaving set of chaperones.
+We use this set to build approximations of both the creation relation and meaningful chaperone set.
 
 To perform this analysis, we must abstract our abstract machine state space (and it is here that this representation choice is justified)~\cite{van2010abstracting}.
 %In addition to modifying the state space, we must alter some of the reduction rules and metafunctions.
@@ -53,7 +53,9 @@ We follow Might's strategy of lifting abstractions component-, element- member-,
 %\newcommand{\rrs}{\longrightarrow^{*}}
 
 \newcommand{\aaa}[0]{\ensuremath{\hat{a}}}
+\newcommand{\av}[0]{\ensuremath{\hat{v}}}
 \newcommand{\af}[0]{\ensuremath{\hat{f}}}
+\newcommand{\an}[0]{\ensuremath{\hat{n}}}
 \newcommand{\aw}[0]{\ensuremath{\hat{w}}}
 \newcommand{\arho}[0]{\ensuremath{\hat{\rho}}}
 \newcommand{\asigma}[0]{\ensuremath{\hat{\sigma}}}
@@ -63,7 +65,7 @@ Portions of the semantics that interact with the store must be modified accordin
 
 \subsection{Atomic Expression Evaluation}
 
-\newcommand{\Aaval}[1]{\ensuremath{\hat{\mathcal{A}}(\sigma,\rho,#1)}}
+\newcommand{\Aaval}[1]{\ensuremath{\hat{\mathcal{A}}(\asigma,\arho,#1)}}
 
 %Stores in the abstract space map abstract addresses to the power set of possible program values.
 %Abstract evaluation of variables merely accesses this mapping.
@@ -87,8 +89,27 @@ In the abstract semantics, $\hat{\mathcal{A}}$ is defined by
 \newcommand{\abind}[2]{\ensuremath{\widehat{\mathrm{bind}}(\asigma,\arho,#1,#2)}}
 \newcommand{\aalloc}[1]{\ensuremath{\widehat{\mathrm{alloc}}(#1)}}
 
-We define $\abind{x}{v}=(\asigma',\arho')$ where $\asigma'=\sigma[\aaa\rightarrow v]$, $\arho'=\arho[x\rightarrow \aaa]$, and $\aaa=\aalloc{x}$ where $\aalloc{x}$ simply returns a fresh address for $x$.
+We define $\abind{x}{\av}=(\asigma',\arho')$ where $\asigma'=\asigma[\aaa\rightarrow \av]$, $\arho'=\arho[x\rightarrow \aaa]$, and $\aaa=\aalloc{x}$ where $\aalloc{x}$ simply returns a fresh address for $x$.
 We also fold $\mathrm{bind}$ over identically-sized variable vectors $\vx$ and value vectors $\vv$.
+
+\subsubsection{chaperone-of?}
+
+The direction of impersonator components through the store and possible superposition of values therein require a change in the definition of $\mathrm{chaperone\mhyphen of?}$.
+
+\setspecialsymbol{AF}{$\af$}
+
+Assuming implicit access to the store $\asigma$,
+\begin{itemize}
+\item[] \chapof{\cha{\aaa_{\ell,f}}{\aaa_{\ell,w}}}{\cha{\aaa_{\ell,f}'}{\aaa_{\ell,w}'}}\\
+\begin{tabular}{ r r l }
+   & & if $\forall \af\in\asigma(\aaa_{\ell,f}), \af'\in\asigma(\aaa_{\ell,f}')\,\chapof{\aaa_{\ell,f}}{f'}$\\
+   & and & $\forall \aw\in\asigma(\aaa_{\ell,w}), \aw'\in\asigma(\aaa_{\ell,w}')\,\chapof{w}{w'}$\\
+or & & if $\forall \af\in\asigma(\aaa_{\ell,f}).\chapof{f}{\cha{f'}{w'}}$.\\
+\end{tabular}
+\item[] \chapof{\cha{\aaa_{\ell,f}}{\aaa_{\ell,w}}}{\af'}\\
+if $\forall \af\in\asigma(\aaa_{\ell,f})\,\chapof{\af}{\af'}$.
+\item[] \chapof{\af}{\af} if \scheme{operator?(AF)}
+\end{itemize}
 
 \begin{figure}
 \label{fig:abstract-states}
@@ -109,9 +130,9 @@ We also fold $\mathrm{bind}$ over identically-sized variable vectors $\vx$ and v
 \stxclasscont{\chacwk{\af}{\vv}}{chaperone negative}\\
 \stxclasscont{\chacfk{\aw}}{chaperone function}\\
 \stxclasscont{\chacrk{\vv}}{chaperone positive}\\
-\stxclass{v}{Val}{$\af\,|\,n\,|\,b$}{values}\\
-\astxclass{\sigma}{Store}{\funarr{Addr}{P(Val)}}{stores}\\
-\astxclass{\rho}{Env}{\funarr{Var}{\widehat{Addr}}}{environments}\\
+\astxclass{\av}{Val}{$\af\,|\,\an\,|\,b$}{values}\\
+\astxclass{\asigma}{Store}{\funarr{\widehat{Addr}}{\mathcal{P}(\widehat{Val})}}{stores}\\
+\astxclass{\arho}{Env}{\finarr{Var}{\widehat{Addr}}}{environments}\\
 \astxclass{\af,\aw}{Op}{\nttwo{clos}{\mathit{lam}}{\arho}}{closures}\\
 \stxclasscont{\ntthr{imp}{\ell}{\aaa_{\ell,f}}{\aaa_{\ell,w}}}{impersonators}\\
 \stxclasscont{\ntthr{chap}{\ell}{\aaa_{\ell,f}}{\aaa_{\ell,w}}}{chaperones}\\
@@ -125,32 +146,62 @@ We also fold $\mathrm{bind}$ over identically-sized variable vectors $\vx$ and v
 The abstraction function $\alpha$ allows us to tune our analysis, much like the parameter $k$ in $k$-CFA.
 In general, the precision of the analysis increases as the abstract primitive domain underlying $\alpha$ coincides more closely with the particular contracts of the program.
 
-\subsubsection{application}
+\subsection{Reduction relation}
+
+The structural changes to the state space of \chapcalc\ affect three reduction rules.
+
+With variable reference yielding a superposition of values and in our higher-order context, there may be multiple points to which control can non-deterministically transfer.
+This affects control states which represent call sites.
+%the reduction relation can fork at a call site in our higher-order context.
+\noindent
+\redta{\sexp{\ks}{\sigma}{\rho}{\appe{\ae_f}{\ae_1\,\dots\,\ae_n}}}
+      {\sapp{\ks}{\sigma}{f}{\langle v_1,\dots,v_n\rangle}}
+      {2$'$}
 
 \noindent
-\red{\sexp{\ks}{\sigma}{\rho}{\appe{\ae_f}{\ae_1\,\dots\,\ae_n}}}{\sapp{\ks}{\sigma}{f}{\langle v_1,\dots,v_n\rangle}}
+where $f\in\Aaval{\ae_f}$ and $v_i\in\Aaval{\ae_i}$ for $i=1,\dots,n$.
 
+In addition, by directing the impersonator operator recursion through the store, we must alter the $\mathbf{apply}$ states which dispatch on impersonators accordingly.
+
+\redta{\sapp{\ks}{\sigma}{\imp{\aaa_{\ell,f}}{\aaa_{\ell,w}}}{\vv}}
+     {\sapp{\impcwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}
+     {6$'$}
 \noindent
-where $f\in\A{\sigma}{\rho}{\ae_f}$ and $v_i\in\A{\sigma}{\rho}{\ae_i}$ for $i=1,\dots,n$.
+where $f\in\asigma(\aaa_{\ell,f})$ and $w\in\asigma(\aaa_{\ell,w})$.
+     
+\redta{\sapp{\ks}{\sigma}{\cha{\aaa_{\ell,f}}{\aaa_{\ell,w}}}{\vv}}
+     {\sapp{\chacwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}
+     {13$'$}
+where $f\in\asigma(\aaa_{\ell,f})$ and $w\in\asigma(\aaa_{\ell,w})$.
 
 %Like closures, there is circularity in the definition of operators in \chapcalc, which induces an infinite space.
 %$\mathrm{Lab}\times\mathrm{Operator}\times\mathrm{Operator}\subset\mathrm{operator}$
 %We finitize the space by directing the components of a procedure impersonator or chaperone through the store.
-%For allocation, we synthesize a variable for each component unique to each call site.
+%
 %$\aaa_\ell,f$
 %$\aaa_\ell,w$
 
+The $\delta$ function is also modified to direct impersonator value components through the store.
+For allocation, we synthesize a variable for each component unique to each call site, denoted above by $\aaa_{\ell,f}$ and $\aaa_{\ell,w}$.
 
-This pushdown analysis is a flow analysis and we use the provided flow information to discover bonafide chaperone-installation sites---that is, call sites to which only \scheme{chap-op} flows to the operator position.
+\subsection{The analysis itself}
+
+With these changes in place, the actual analysis is fairly straightforward.
+
+A pushdown analysis is a flow analysis and we use the provided flow information to discover bonafide chaperone-installation sites---that is, call sites to which only \scheme{chap-op} flows to the operator position.
 
 We build the creation relation by considering each chaperone-installation operation and gathering the active chaperone guard frames at that control point.
 We relate the label of the present installation site with the label that annotates each frame and is carried from the installation sites of the chaperones the frame represents.
 
-We build the misbehaving set of chaperones by considering error states.
-For each error state, we gather the active chaperone guard frames and include their annotating labels in the misbehaving set.
-If the error state itself has explicit blame, the associated label is also included in the misbehaving set.
+We build the meaningful chaperone set by considering error states and possibly divergent guards.
+For each error state, we gather the active chaperone guard frames and include their annotating labels in the set.
+If the error state itself has explicit blame, the associated label is also included.
+For divergence, we consider the call graphs rooted at the application of each chaperone guard procedure (these roots distinguished by the particular stack frame pushed) to approximate termination behavior.
+We pay precision for the simplicity of considering cyclic call graphs as possibly divergent, but this strategy is sufficient for our calculus.
+(We discuss this decision in more depth in Section~\ref{sec:limitations}.)
+The chaperone owner's labels of these guards are included in the meaningful set.
 
-Finally, we consider call graphs rooted at the application of a chaperone guard procedure (these roots distinguished by the particular stack frame pushed) to approximate termination behavior.
+With approximations of the creation relation and meaningful impersonator and chaperone sets, it is straightforward to identify and discharge or demote the meaningless installation sites.
 
 
 %error dependency relation by gathering the active chaperone guard frames at each point of error
@@ -220,23 +271,7 @@ Finally, we consider call graphs rooted at the application of a chaperone guard 
 %                        (f->n (c:! (n->f 6)))))))))))))))
 %\end{schemedisplay}
 
-%\subsubsection{Abstract Domains}
 
-%Because higher-order contracts often refine domains, the choice of abstraction function can have significant ramifications for the precision of the analysis.
-%For instance, an analysis of the program
-%\begin{schemedisplay}
-%(letrec ([(fact) (values (LAMBDA (n)
-%                          (let ([test0 (= n 0)])
-%                            (if test0
-%                                1
-%                                (let ([(n-1) (- n 1)])
-%                                  (let ([(rec) (fact n-1)])
-%                                    (* n rec)))))))])
-%  (let ([(fact) (-> fact nonnegative? positive?)])
-%    (fact 5)))
-%\end{schemedisplay}
-%using a singleton domain [?] for integers will fail to discharge the chaperone.
-%A domain which distinguishes values coincident with the edges of the contract would be able to.
 
 %\subsection{Termination Analysis}
 
@@ -299,4 +334,4 @@ Finally, we consider call graphs rooted at the application of a chaperone guard 
 %We could look more precisely at dependence and distinguish between positive and negative guards more.
 %We could find instances where the positive guard could be discharged with values. Then the negative guard could be discharged if the positive guard could be and it itself was well-behaved.
 %Then a chaperone or impersonator with a guard values can be discharged.
-A chaperone-installment site can discharge the positive guard if none of the positive guards of its constituents are relied on by errors.
+%A chaperone-installment site can discharge the positive guard if none of the positive guards of its constituents are relied on by errors.

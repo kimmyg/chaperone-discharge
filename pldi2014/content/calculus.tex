@@ -2,9 +2,9 @@
 
 In order to explicate a static analysis of higher-order interposition, we define \chapcalc, or \emph{chaperone calculus}, an extension of the A-normalized $\lambda$-calculus with interposition facilities.
 
-As only a moderate extension of the $\lambda$-calculus, \chapcalc\ lacks many Racket features.
+%As only a moderate extension of the $\lambda$-calculus, \chapcalc\ lacks many Racket features.
 %Mutation, in particular, is conspicuously absent.
-We discuss the integration of other language features in Section \ref{sec:limitations}.
+%We discuss the integration of other language features in Section \ref{sec:limitations}.
 
 
 \subsection{\chapcalc\ Syntax}
@@ -128,10 +128,13 @@ A program is a term in the grammar with no free variables and in which all ident
 \newcommand{\serr}[3]{\mathbf{error}(#1,#2,#3)}
 \newcommand{\sbla}[2]{\mathrm{blame}_{#1}(#2)}
 \newcommand{\app}[4]{\mathrm{apply}(#1,#2,#3,#4)}
-\newcommand{\reda}[2]{\begin{equation}\begin{aligned}& #1\\\rr\, & #2\end{aligned}\end{equation}}
-\newcommand{\red}[2]{$#1\rr#2$}
+\newcommand{\redta}[3]{\begin{equation}\begin{aligned}& #1\\\rr\, & #2\end{aligned}\tag{#3}\end{equation}}
+\newcommand{\red}[2]{\begin{equation}#1\rr#2\end{equation}}
+\newcommand{\redt}[3]{\begin{equation}#1\rr#2#3\end{equation}}
 \newcommand{\redtwo}[5]{\begin{math}#1\rr\begin{cases}#2 & #3\\ #4 & #5\end{cases}\end{math}}
+\newcommand{\redtwot}[6]{\begin{equation}#1\rr\begin{cases}#2 & #3\\ #4 & #5\end{cases}#6\end{equation}}
 \newcommand{\redthr}[7]{\begin{math}#1\rr\begin{cases}#2 & #3\\ #4 & #5\\#6 & #7\end{cases}\end{math}}
+\newcommand{\redthrt}[7]{\begin{equation}#1\rr\begin{cases}#2 & #3\\ #4 & #5\\#6 & #7\end{cases}\end{equation}}
 
 
 \newcommand{\clo}[2]{\nttwo{clos}{#1}{#2}}
@@ -148,10 +151,10 @@ A program is a term in the grammar with no free variables and in which all ident
 \newcommand{\chacfk}[1]{\nttwo{chap\mhyphen fun}{\ell}{#1}}
 \newcommand{\chacrk}[1]{\nttwo{chap\mhyphen pos}{\ell}{#1}}
 
-\newcommand{\blame}[1]{\ensuremath{\mathrm{blame}(#1)}}
 \newcommand{\impblame}[1]{\ensuremath{\mathrm{imp\mhyphen blame}(#1)}}
 \newcommand{\chablame}[1]{\ensuremath{\mathrm{cha\mhyphen blame}(#1)}}
-\newcommand{\noblame}[0]{\ensuremath{\mathrm{noblame}}}
+\newcommand{\blame}[1]{\ensuremath{\mathrm{blame}(#1)}}
+\newcommand{\noblame}[0]{\ensuremath{\mathrm{empty\mhyphen blame}}}
 
 \newcommand{\rr}{\longrightarrow}
 \newcommand{\rrs}{\longrightarrow^{*}}
@@ -165,6 +168,7 @@ We use boldface to denote a vector of objects in that category; e.g., $\vv$ deno
 We use a star ($^*$) for the same purpose when boldface is not available; e.g., $\gamma^*$ denotes a vector $\langle\gamma_1,\dots,\gamma_n\rangle$.
 The notation $x::\vx$ denotes the prepend of $x$ to the vector $\vx$.
 (If $\vx=\langle x_1,x_2,\dots,x_n\rangle$, then $x::\vx=\langle x,x_1,x_2,\dots,x_n\rangle$.)
+For a vector $\vv=\langle x_1, x_2, \dots, x_n\rangle$, $|\vv|$ denotes the size of the vector $n$.
 
 First we define a set of metafunctions that the semantics relies on.
 
@@ -234,26 +238,21 @@ or & if \chapof{f}{\cha{f'}{w'}}
 The arity of an operator in \chapcalc\ is a set of natural numbers each indicating a number of arguments the operator will accept.
 For most operators in \chapcalc\, this arity is a singleton.
 To wit, the arity of closures is simply the number of formal parameters of the $\lambda$-term.
-
 \begin{itemize}
 \item[] $\arity{\clo{\lame{x_1\,\dots\,x_n}{e}}{\rho}}=\{n\}$
 \end{itemize}
-
 The arity of impersonators (including chaperones) is the arity of the impersonated operator.
-
 \begin{itemize}
 \item[] $\arity{\imp{f}{w}}=\arity{f}$
 \end{itemize}
-
 The arity of each primitive procedure is straightforward with two exceptions:
-
 \begin{itemize}
-\item[] $\arity{\mathit{values}}=\{0,1,2,\dots\}$
-\item[] $\arity{\mathit{raise}}=\{0,1,2,\dots\}$
+\item[] $\arity{\mathit{values}}=\arity{\mathit{raise}}=\{0,1,2,\dots\}$
 \end{itemize}
 
 
 \newcommand{\funarr}[2]{$\mathbf{#1}\rightarrow\mathbf{#2}$}
+\newcommand{\finarr}[2]{$\mathbf{#1}\rightharpoonup\mathbf{#2}$}
 
 \begin{figure}
 \label{fig:states}
@@ -275,14 +274,15 @@ The arity of each primitive procedure is straightforward with two exceptions:
 \stxclasscont{\chacfk{w}}{chaperone function}\\
 \stxclasscont{\chacrk{\vv}}{chaperone positive}\\
 \stxclass{v}{Val}{$f\,|\,n\,|\,t$}{values}\\
-\stxclass{\sigma}{Store}{\funarr{Addr}{Val}}{stores}\\
-\stxclass{\rho}{Env}{\funarr{Var}{Addr}}{environments}\\
+\stxclass{\sigma}{Store}{\finarr{Addr}{Val}}{stores}\\
+\stxclass{\rho}{Env}{\finarr{Var}{Addr}}{environments}\\
 \stxclass{f,w}{Op}{\nttwo{clos}{\mathit{lam}}{\rho}}{closures}\\
 \stxclasscont{\ntthr{imp}{\ell}{f}{w}}{impersonators}\\
 \stxclasscont{\ntthr{chap}{\ell}{f}{w}}{chaperones}\\
 \stxclasscont{$p$}{primitives}\\
 \stxclass{a}{Addr}{an infinite set of addresses}{}\\
-\stxclass{b}{Blame}{$\blame{\ell}\,|\,\noblame$}{blame}
+\stxclass{b}{Blame}{$\impblame{\ell}\,|\,\chablame{\ell}$}{blame}\\
+\stxclasscont{$\blame{\ell}\,|\,\noblame$}{}
 \end{tabular}
 
 \caption{Abstract machine state space for \chapcalc}
@@ -303,182 +303,159 @@ An $\mathbf{error}$ state represents the arisal of an error and, as the result o
 Finally, the $\mathbf{imp_0}$, $\mathbf{imp_1}$, $\mathbf{chap_0}$, and $\mathbf{chap_1}$ states each split a transition which would otherwise pop and push a frame simulaneously into a sequence of two transitions which performs each separately.
 (These are for convenience for the eventual static analysis.)
 
-\subsection{Evaluation Relation}
+\subsection{Reduction relation}
+
+Figure~\ref{fig:redrec} contains the definition of the reduction relation of abstract machine states.
 
 
 
-
-
-
-
-
-
+%It is significant that the most specific blame is assigned first.
+%For instance, when a negative chaperone guard returns an extra result, the remaining results are checked to be $\mathrm{chaperone\mhyphen of?}$ the arguments before the extra result is checked to be a procedure.
+%If the order were reversed, our analysis might erroneously judge a chaperone as well-behaved which is not.
+%[It's actually not significant because if the transformation preserves the semantics, then that value will raise the error as an impersonator also. It is as if the well-behavedness is vacuous.]
 
 \begin{figure*}
-\subsubsection{Application}
 
-\noindent
-\red{\sexp{\ks}{\sigma}{\rho}{\appe{\ae_f}{\ae_1\,\dots\,\ae_n}}}{\sapp{\ks}{\sigma}{f}{\langle v_1,\dots,v_n\rangle}}
-where $f=\A{\sigma}{\rho}{\ae_f}$ and $v_i=\A{\sigma}{\rho}{\ae_i}$ for $i=1,\dots,n$.
+\redt{\sexp{\ks}{\sigma}{\rho}{\lete{x_1\,\dots\, x_n}{c}{e}}}
+     {\sexp{\letk{\vx}{\rho}{e}::\ks}{\sigma}{\rho}{c}}
+     {\mbox{ where }\vx=\langle x_1,\dots,x_n\rangle\mbox{.}}
 
-\subsubsection{The let Form}
+\redt{\sexp{\ks}{\sigma}{\rho}{\appe{\ae_f}{\ae_1\,\dots\,\ae_n}}}
+     {\sapp{\ks}{\sigma}{f}{\langle v_1,\dots,v_n\rangle}}
+     {\mbox{ where }f=\A{\sigma}{\rho}{\ae_f}\mbox{ and }v_i=\A{\sigma}{\rho}{\ae_i}\mbox{ for }i=1,\dots,n\mbox{.}}
 
-% encounter let form
-\noindent
-\red{\sexp{\ks}{\sigma}{\rho}{\lete{x_1\,\dots\, x_n}{c}{e}}}{\sexp{\letk{\vx}{\rho}{e}::\ks}{\sigma}{\rho}{c}}
-where $\vx=\langle x_1,\dots,x_n\rangle$.
+\redtwot{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}
+        {\sexp{\ks}{\sigma'}{\rho'}{e_1}}{\mbox{if }|\vx|=|\vv|}
+        {\serr{\ks}{\sigma}{\noblame}}{\mbox{if }|\vx|\ne|\vv|}
+        {\mbox{ where }(\sigma',\rho')=\bind{\vx}{\vv}\mbox{.}}    
 
+\redtwot{\sexp{\ks}{\sigma}{\rho}{\ife{\ae_t}{e_c}{e_a}}}
+        {\sexp{\ks}{\sigma}{\rho}{e_c}}{\mbox{if }v_t\ne\false}
+        {\sexp{\ks}{\sigma}{\rho}{e_a}}{\mbox{if }v_t=\false}
+        {\mbox{ where }v_t=\A{\sigma}{\rho}{\ae_t}\mbox{.}}
 
-\redtwo{\sval{\letk{\rho}{\vx}{e_1}::\ks}{\sigma}{\vv}}
-       {\sexp{\ks}{\sigma'}{\rho'}{e_1}}{\mbox{if }|\vx|=|\vv|}
-       {\serr{\ks}{\sigma}{\noblame}}{\mbox{if }|\vx|\ne|\vv|}
-where $(\sigma',\rho')=\bind{\vx}{\vv}$     
+\redtwot{\sapp{\ks}{\sigma}{\clo{\lame{x_1\,\dots\,x_n}{e}}{\rho}}{\vv}}
+        {\sexp{\ks}{\sigma'}{\rho'}{e}}{\mbox{if }|\vx|=|\vv|}
+        {\serr{\ks}{\sigma}{\blame{\ell}}}{\mbox{if }|\vx|\ne|\vv|}
+        {\mbox{ where }\vx=\langle x_1,\dots,x_n\rangle\mbox{ and }(\sigma',\rho')=\bind{\vx}{\vv}\mbox{.}}
 
-\subsubsection{if}
+\redt{\sapp{\ks}{\sigma}{\imp{f}{w}}{\vv}}
+     {\sapp{\impcwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}
+     {}
 
-\redtwo{\sexp{\ks}{\sigma}{\rho}{\ife{\ae_t}{e_c}{e_a}}}
-       {\sexp{\ks}{\sigma}{\rho}{e_c}}{\mbox{if }v_t\ne\false}
-       {\sexp{\ks}{\sigma}{\rho}{e_a}}{\mbox{if }v_t=\false}
-where $v_t=\A{\sigma}{\rho}{\ae_t}$.
-
-\subsection{apply}
-
-\subsubsection{closure}
-
-\redtwo{\sapp{\ks}{\sigma}{\clo{\lame{x_1\,\dots\,x_n}{e}}{\rho}}{\vv}}
-       {\sexp{\ks}{\sigma'}{\rho'}{e}}{\mbox{if }|\vx|=|\vv|}
-       {\serr{\ks}{\sigma}{\blame{\ell}}}{\mbox{if }|\vx|\ne|\vv|}
-where $\vx=\langle x_1,\dots,x_n\rangle$ and $(\sigma',\rho')=\bind{\vx}{\vv}$
-
-\subsubsection{impersonator}
-
-\red{\sapp{\ks}{\sigma}{\imp{f}{w}}{\vv}}{\sapp{\impcwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}
-
-
-\redtwo{\sval{\impcwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}
+\redtwot{\sval{\impcwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}
        {\simpz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\mbox{if }|\vv|=|\vvp|\mbox{ and } \mathrm{operator?}(w)\mbox{,}}
        {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ but not }\mathrm{operator?}(w)\mbox{.}}
+       {}
 
-\redtwo{\sval{\impcwk{f}{\vv}::\ks}{\sigma}{\vvp}}
-       {\sapp{\ks}{\sigma}{f}{\vvp}}{\mbox{if }|\vv|=|\vvp|\mbox{,}}
-       {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|\ne|\vvp|\mbox{.}}
+\redtwot{\sval{\impcwk{f}{\vv}::\ks}{\sigma}{\vvp}}
+        {\sapp{\ks}{\sigma}{f}{\vvp}}{\mbox{if }|\vv|=|\vvp|\mbox{,}}
+        {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|\ne|\vvp|\mbox{.}}
+        {}
+        
+\redt{\simpz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}
+     {\sapp{\impcfk{w}::\ks}{\sigma}{f}{\vvp}}
+     {}
 
-\red{\simpz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\sapp{\impcfk{w}::\ks}{\sigma}{f}{\vvp}}
+\redt{\sval{\impcfk{w}::\ks}{\sigma}{\vv}}
+     {\simpo{\ks}{\sigma}{w}{\vv}{\ell}}
+     {}
+     
+\redt{\simpo{\ks}{\sigma}{w}{\vv}{\ell}}
+     {\sapp{\impcrk{\vv}::\ks}{\sigma}{w}{\vv}}
+     {}
 
-\red{\sval{\impcfk{w}::\ks}{\sigma}{\vv}}{\simpo{\ks}{\sigma}{w}{\vv}{\ell}}
+\redtwot{\sval{\impcrk{\vv}::\ks}{\sigma}{\vvp}}
+        {\sval{\ks}{\sigma}{\vvp}}{\mbox{if }|\vv|=|\vvp|\mbox{,}}
+        {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|\ne|\vvp|\mbox{ and }|\vv|+1\ne|\vvp|\mbox{.}}
+        {}
+        
+\redt{\sapp{\ks}{\sigma}{\cha{f}{w}}{\vv}}
+     {\sapp{\chacwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}
+     {}
 
-\red{\simpo{\ks}{\sigma}{w}{\vv}{\ell}}{\app{\impcrk{\vv}::\ks}{\sigma}{w}{\vv}}
+\redthrt{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}
+        {\schaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\mbox{if }|\vv|=|\vvp|\mbox{, } \chapof{\vvp}{\vv}\mbox{, and }\mathrm{operator?}(w)\mbox{,}}
+        {\serr{\ks}{\sigma}{\chablame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ but not }\chapof{\vvp}{\vv}\mbox{,}}
+        {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ and }\chapof{\vvp}{\vv}\mbox{ but not }\mathrm{operator?}(w)\mbox{.}}
 
-\redtwo{\sval{\impcrk{\vv}::\ks}{\sigma}{\vvp}}
-       {\sval{\ks}{\sigma}{\vvp}}{\mbox{if }|\vv|=|\vvp|\mbox{,}}
-       {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|\ne|\vvp|\mbox{ and }|\vv|+1\ne|\vvp|\mbox{.}}
+\redthrt{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}
+        {\sapp{\ks}{\sigma}{f}{\vvp}}{\mbox{if }|\vv|=|\vvp|\mbox{ and }\chapof{\vvp}{\vv}\mbox{,}}
+        {\serr{\ks}{\sigma}{\chablame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ but not }\chapof{\vvp}{\vv}\mbox{,}}
+        {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|\ne|\vvp|\mbox{ and }|\vv|+1\ne|\vvp|\mbox{.}}
 
+\redt{\schaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}
+     {\sapp{\chacfk{w}::\ks}{\sigma}{f}{\vvp}}
+     {}
 
-\subsubsection{chaperone}
+\redt{\sval{\chacfk{w}::\ks}{\sigma}{\vv}}
+     {\schao{\ks}{\sigma}{w}{\vv}{\ell}}
+     {}
 
-\red{\sapp{\ks}{\sigma}{\cha{f}{w}}{\vv}}{\sapp{\chacwk{f}{\vv}::\ks}{\sigma}{w}{\vv}}
+\redt{\schao{\ks}{\sigma}{w}{\vv}{\ell}}
+     {\sapp{\chacrk{\vv}::\ks}{\sigma}{w}{\vv}}
+     {}
 
+\redthrt{\sval{\chacrk{\vv}::\ks}{\sigma}{\vvp}}
+        {\sval{\ks}{\sigma}{\vvp}}{\mbox{if }|\vv|=|\vvp|\mbox{ and }\chapof{\vvp}{\vv}\mbox{,}}
+        {\serr{\ks}{\sigma}{\chablame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ but not }\chapof{\vvp}{\vv}\mbox{,}}
+        {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|\ne|\vvp|\mbox{.}}
 
-\redthr{\sval{\chacwk{w}{\vv}::\ks}{\sigma}{w::\vvp}}
-       {\schaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\mbox{if }|\vv|=|\vvp|\mbox{, } \mathrm{operator?}(w)\mbox{, and }\chapof{\vvp}{\vv}\mbox{,}}
-       {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ but not }\mathrm{operator?}(w)\mbox{,}}
-       {\serr{\ks}{\sigma}{\chablame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ and }\mathrm{operator?}(w)\mbox{ but not }\chapof{\vvp}{\vv}\mbox{.}}
+\redtwot{\sapp{\ks}{\sigma}{p}{\vv}}
+        {\sval{\ks}{\sigma}{\vvp}}{\mbox{if }\delta(p,\vv)=\vvp\mbox{ for some }\vvp\mbox{,}}
+        {\serr{\ks}{\sigma}{b}}{\mbox{if }\delta(p,\vv)=b\mbox{ for some }b\mbox{.}}
+        {}
 
-
-\redthr{\sval{\chacwk{f}{\vv}::\ks}{\sigma}{\vvp}}
-       {\sapp{\ks}{\sigma}{f}{\vvp}}{\mbox{if }|\vv|=|\vvp|\mbox{ and }\chapof{\vvp}{\vv}\mbox{,}}
-       {\serr{\ks}{\sigma}{\chablame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ but not }\chapof{\vvp}{\vv}\mbox{,}}
-       {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|\ne|\vvp|\mbox{ and }|\vv|+1\ne|\vvp|\mbox{.}}
-
-
-\red{\schaz{\ks}{\sigma}{f}{\vvp}{\ell}{w}}{\sapp{\chacfk{w}::\ks}{\sigma}{f}{\vvp}}
-
-\red{\sval{\chacfk{w}::\ks}{\sigma}{\vv}}{\schao{\ks}{\sigma}{w}{\vv}{\ell}}
-
-\red{\schao{\ks}{\sigma}{w}{\vv}{\ell}}{\app{\chacrk{\vv}::\ks}{\sigma}{w}{\vv}}
-
-\redthr{\sval{\chacrk{\vv}::\ks}{\sigma}{\vvp}}
-       {\sval{\ks}{\sigma}{\vvp}}{\mbox{if }|\vv|=|\vvp|\mbox{ and }\chapof{\vvp}{\vv}\mbox{,}}
-       {\serr{\ks}{\sigma}{\chablame{\ell}}}{\mbox{if }|\vv|=|\vvp|\mbox{ but not }\chapof{\vvp}{\vv}\mbox{,}}
-       {\serr{\ks}{\sigma}{\impblame{\ell}}}{\mbox{if }|\vv|\ne|\vvp|\mbox{.}}
-
-\subsubsection{primitive}
-\red{\sapp{\ks}{\sigma}{p}{\vv}}{\sval{\ks}{\sigma}{\delta(p,\vv)}}
-if $\delta(p,\vv)=\vvp$ for some $\vvp$.
-
-\red{\sapp{\ks}{\sigma}{p}{\vv}}{\serr{\ks}{\sigma}{\delta(p,\vv)}}
-if $\delta(p,\vv)=b$ for some $b$.
+\caption{\chapcalc\ reduction relation}
+\label{fig:redrec}
 \end{figure*}
 
+Rule 5 represents closure application which proceeds straightforwardly by extending its environment and evaluating its body.
+If the number of values applied is incompatible with the arity of the closure, blame is assigned to the call site.
+Rules 6 and 13 represent impersonator application which recurs on its guard and augments the context to complete the interposition when its guard returns.
+The enlarged context is annotated with the label of the applied impersonator (which itself is the label of its installment site).
+If the guard operator provides an operator as an additional result, as in rules 7 and 14, this operator is situated to intercept the results of the impersonated operator.
+If no additional result is provided, as in rules 8 and 15, the impersonated operator is invoked with the continuation of its impersonator, i.e., the interposition ceases for that invocation.
+The rules pertinent to chaperones augment this protocol, ensuring that guard results are $\mathrm{chaperone\mhyphen of?}$ their arguments.
+Rule 20 represents primitive application defined by the $\delta$ function.
+The label of the call site is passed implicitly to each primitive with which the \scheme{imp-op} and \scheme{chap-op} primitives imbue the newly-created impersonator.
+Otherwise, it is used to blame the call site in case of error.
 
+\subsubsection{Blame}
 
+There are four variants of blame.
+\begin{itemize}
+\item
+$\chablame{\ell}$ represents blame circumstances exclusive to chaperones.
+The only such circumstances are when the results of a guard are not $\mathrm{chaperone\mhyphen of?}$ its arguments.
 
+\item
+$\impblame{\ell}$ represents blame circumstances exclusive to impersonators (which includes chaperones).
+These include when a guard returns an unacceptable number of results or the extra result is not a procedure.
 
+\item
+$\blame{\ell}$ represents blame at a call site and disqualifies the call site from being transformed.
 
+\item
+$\noblame$ represents blame independent of a call site or impersonator.
+Such situations include when the number of results to a \scheme{let} continuation is incompatible with the number of formal parameters.
+\end{itemize}
 
-
-
-
-
-\subsubsection{Application}
-
-\subsubsection{The let Form}
-
-\subsubsection{if}
-
-\red{\sexp{\ks}{\sigma}{\rho}{\ife{\ae_t}{e_c}{e_a}}}{\sexp{\ks}{\sigma}{\rho}{e_c}}
-if $v_t\ne\false$
-where $v_t=\A{\sigma}{\rho}{\ae_t}$.
-
-\red{\sexp{\ks}{\sigma}{\rho}{\ife{\ae_t}{e_c}{e_a}}}{\sexp{\ks}{\sigma}{\rho}{e_a}}
-if $v_t=\false$
-where $v_t=\A{\sigma}{\rho}{\ae_t}$.
-
-\subsection{apply}
-
-\emph{apply} states serve as the branching point for dispatch on the operator.
-
-\subsubsection{closure}
-
-The application of a closure operator proceeds straightforwardly by extending its environment and evaluating its body.
-
-If the number of values applied is incompatible with the arity of the closure, blame is assigned dynamically.
-
-\subsubsection{impersonator}
-
-Impersonator application recurs on its guard and augments the context to complete the interposition when its guard returns.
-The enlarged context is annotated with the label of the applied chaperone (which itself is the label of its installment site).
-
-When the results of its wrapper are obtained, the next state is determined by the results.
-If an additional result is provided and it is an operator, it is situated to intercept procedure results.
-
-If the number of results obtained is the same as the number of arguments given, the interposition ceases and the function can be evaluated in tail position with respect to the chaperone application.
-
-[That the number of arguments received is the same as the number given is ensured.]
-
-
-
-\subsubsection{chaperone}
-
-Chaperone application recurs on its guard and augments the context to complete the interposition when its guard returns.
-The enlarged context is annotated with the label of the applied chaperone (which itself is the label of its installment site).
-
-When the results of its wrapper are obtained, the next state is determined by the results.
-If an additional result is provided and it is an operator, it is situated to intercept function results.
-
-If the number of results obtained is the same as the number of arguments given, the interposition ceases and the function can be evaluated in tail position with respect to the chaperone application.
-
-[DEFINE BLAME!]
-
-The label of the call site is passed implicitly to each primitive.
-The \scheme{imp-op} and \scheme{chap-op} primitives imbue the newly-created value with it.
-Otherwise, it is used to blame the context.
-
+\newcommand{\primonl}[4]{$\delta$(#1,$#2$) &= $#3$ & #4}
 \newcommand{\primone}[4]{$\delta$(#1,$\langle #2 \rangle$) &= $\langle #3 \rangle$ & #4}
 \newcommand{\primtwo}[5]{$\delta$(#1,$\langle #2, #3 \rangle$) &= $\langle #4 \rangle$ & #5}
-\newcommand{\primtwe}[4]{$\delta$(#1,$\langle #2, #3 \rangle$) &= $\ell$ & #4}
+\newcommand{\primtwe}[4]{$\delta$(#1,$\langle #2, #3 \rangle$) &= $\blame{\ell}$ & #4}
 \newcommand{\primfou}[7]{$\delta$(#1,$\langle #2, #3, #4, #5\rangle$) &= $\langle #6 \rangle$ & #7}
-\newcommand{\primfoe}[6]{$\delta$(#1,$\langle #2, #3, #4, #5\rangle$) &= $\ell$ & #6}
+\newcommand{\primfoe}[6]{$\delta$(#1,$\langle #2, #3, #4, #5\rangle$) &= $\blame{\ell}$ & #6}
+
+\subsubsection{Primitive operators}
+
+The evaluation of a primitive operator application is given by the definition of the $\delta$ function which is seen in Figure~\ref{fig:delta}.
+Most primitive operators accept a specific number of arguments with specific types.
+If the number or type of the arguments is not as defined, the result is blame on the originating site (which label is provided implicitly).
+The class $n$ of variables indicate integers, the class $f$ operators, the class $t$ booleans, and the class $v$ a union of all value types.
+
+\begin{figure}
 \begin{tabular}{ r l l }
 \primtwo{\scheme|<|}{n_1}{n_2}{\true}{if $n_1 < n_2$}\\
 \primtwo{\scheme|<|}{n_1}{n_2}{\false}{otherwise}\\
@@ -492,8 +469,8 @@ Otherwise, it is used to blame the context.
 \primtwe{\scheme|imp-op|}{f_1}{f_2}{otherwise}\\
 \primtwo{\scheme|chap-op|}{f_1}{f_2}{\cha{f_1}{f_2}}{if $\arity{f_2}\supseteq\arity{f_1}$}\\
 \primtwe{\scheme|chap-op|}{f_1}{f_2}{otherwise}\\
-\primfou{\scheme|values|}{v_1}{v_2}{\dots}{v_n}{v_1,v_2,\dots,v_n}{}\\
-\primfoe{\scheme|raise|}{v_1}{v_2}{\dots}{v_n}{}\\
+\primonl{\scheme|values|}{\vv}{\vv}{}\\
+\primonl{\scheme|raise|}{\vv}{\blame{\ell}}{}\\
 \primone{\scheme|not|}{v}{\true}{if $v = \false$}\\
 \primone{\scheme|not|}{v}{\false}{otherwise}\\
 \primone{\scheme|operator?|}{f}{\true}{}\\
@@ -503,24 +480,19 @@ Otherwise, it is used to blame the context.
 \primone{\scheme|boolean?|}{t}{\true}{}\\
 \primone{\scheme|boolean?|}{v}{\false}{for $v$ not a boolean}\\
 \end{tabular}
+\caption{\chapcalc\ $\delta$ function}
+\label{fig:delta}
+\end{figure}
 
-The class $n$ of variables indicate integers, the class $f$ operators, the class $t$ booleans, and the class $v$ a union of all value types.
-If a primitive is applied to a different number or type of arguments than shown, its evaluation raises an error.
+The \scheme{values} and \scheme{raise} operators are distinct.
+The \scheme{values} accepts any number of arguments and returns them to the providing context.
+The \scheme{raise} discards any number of arguments and raises an error.
+The arity of each of these operators then includes the arity of any other operator, so the installation \scheme{(chap-op values values)} is legal, if superfluous.
 
-The \scheme{values} primitive is distinct.
-It takes any number of arguments and returns that same number.
-Its arity is taken to be equal to the arity of any other operator, including itself.
-Thus, the installation \scheme{(chap-op values values)} is legal, if superfluous).
+\subsection{Program evaluation}
 
-
-
-The reduction relation is defined as the union of each given relation.
-[show it doesn't get stuck somewhere else?]
 \begin{itemize}
 \item If $I(p)\longrightarrow^{*}\sval{\langle\rangle}{\sigma}{\vv}$, the program evaluates to the values $\vv$ which we write as $p\Downarrow\vv$.
 \item If $I(p)\longrightarrow^{*}\serr{\langle\gamma_1,\dots,\gamma_n\rangle}{\sigma}{b}$, $p$ the program results in an error with blame $b$ and we write $p\Uparrow b$.
 \item If, for all $\varsigma$ such that $I(p)\longrightarrow^{*}\varsigma$, there exists $\varsigma'$ such that $\varsigma\longrightarrow\varsigma'$, then $p$ diverges and we write $p\Uparrow$.
 \end{itemize}
-
-
-and remember to define a program resulting in a blame error, diverging, etc.

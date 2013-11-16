@@ -3,23 +3,41 @@
 
 There is a litany of Racket features with which a complete analysis must contend.
 
+\subsection{Rest parameters}
+
+As it stands, our analysis depends on procedure arguments being represented statically.
+Typical Racket programs frequently use \emph{rest} parameters to dynamically gather provided arguments and \scheme{apply} to dynamically provide arguments to a procedure.
+
+\subsection{Inductively-defined values}
+
 Our calculus has an impoverished value domain, so our termination judgments of guards are nearly complete in practice as a result of only a simple flow analysis.
 %Because, in practice, guards are not recursive themselves or any procedures in the call graph. Essentially, call graphs for guard procedures are trees.)
 Contracts on compound data complicate matters because the data may be defined inductively which makes recursive checking natural.
 We can accomodate this in particular by integrating size-change analysis~\cite{lee2001size} into our abstract interpretation.
 This would be novel as higher-order size-change analysis~\cite{sereni2007termination} has heretofore been applied only to variants of $k$-CFA~\cite{shivers1991control}.
+As seen with chaperones, these types of values can destroy precision when determining whether a chaperone guard is well-behaved.
+
+\subsection{Mutation}
+
+Mutation compounds the problem of static determination of the $\mathrm{chaperone\mhyphen of?}$ relation.
+
+\subsection{Impersonator properties}
 
 Racket allows first-class \emph{impersonator properties} to be defined with which the programmer can associate arbitrary values with impersonator values and query whether a given value is an impersonator with such a property.
 We have completely ignored this aspect of impersonators in our analysis.
 Such properties and their associated values must be included at the installation site for the impersonator, so we can safely ignore them by only considering sites at which no properties are installed.
 
+\subsection{Other impersonator types}
+
 Of course, Racket provides impersonation facilities for \emph{many} other classes of values: boxes, structures, vectors, hashes, and even continuation prompts.
 Procedures are ultimately one of the simpler datatypes having only one operation common among them.
 We reserve investigation into the analysis of other datatypes for future work.
 
-Other features inherited from Scheme are mutation, variable-arity procedures.
+%Other features inherited from Scheme are mutation, variable-arity procedures.
 
-On its face, the integration of an error-handling construct is tractable, at least with the current, limited calculus.
+\subsection{Exception handlers}
+
+On its face, the integration of exception handlers is tractable, at least in the current, limited calculus.
 We simply need to keep in mind that errors influence the behavior of the program whether they are redirected or not.
 Essentially, we would treat exception handlers for error-dependence analysis as if they didn't exist.
 %mutation
@@ -42,12 +60,15 @@ Essentially, we would treat exception handlers for error-dependence analysis as 
 %Our analysis applies equally well if we extend the language with more referentially transparent primitives or macro-expressible constructs such as \scheme{and} and \scheme{or} forms.
 %We can even add an error-catching facility but we must be careful in our analysis.
 
-In Racket, the \scheme{chaperone-of?} relation is accessible through a predicate procedure.
-However, its presence in Racket has different implications than its introduction to \chapcalc, which can use it to determine whether two procedures are intensionally equivalent.
-(In Racket, its use in that fashion is restricted to determining whether two references indicate the same procedure.)
+\subsection{Chaperone-identifying predicates}
 
-Chaperones are intended to be treated like the original value.
-The \scheme{chaperone?} predicate is designated as the single way to detect chaperones at runtime, though its use is discouraged.
+In Racket, the \scheme{chaperone-of?} relation is accessible through a predicate procedure.
+We omitted it from \chapcalc\ for simplicity, but programmer access does not seem to complicate our analysis.
+%However, its presence in Racket has different implications than its introduction to \chapcalc, which can use it to determine whether two procedures are intensionally equivalent.
+%(In Racket, its use in that fashion is restricted to determining whether two references indicate the same procedure.)
+Racket also provides a \scheme{chaperone?} predicate which discriminates chaperoned values from all others.
+We might be able to handle this predicate by tainting the abstract chaperone value to which it is applied.
+In practice, this probably would not disqualify any otherwise-qualified candidates for discharge since chaperones are intended to be treated transparently and use of \scheme{chaperone?} is discouraged.
 
 %\subsection{Handling \emph{handle}}
 

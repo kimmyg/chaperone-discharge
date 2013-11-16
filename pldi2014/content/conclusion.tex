@@ -1,17 +1,23 @@
 \section{Conclusion}
+\label{sec:conclusion}
 
-Interposition primitives exist for more than functions in Racket: boxes, vectors, hash tables, continuation mark keys, etc.
+We present a static analysis which can determine when it is safe to prevent the installation of dynamic contracts, even if the installation of other contracts depends on them.
+This work is part of ongoing research to tame dynamic language features with advancement in static analysis methods.
+The analysis is presently of little practical use as interesting Racket programs tend to use expressive features which complicate the analysis.
 
-We omitted from \chapcalc a few primitives that exist in Racket that must be accounted for by our analysis.
-A call \scheme{(chaperone-of? f g)} determines whether \scheme{f} is \scheme{equal?} to \scheme{g} modulo chaperones.
-In other words, it determines whether \scheme{f} could be constructed from the parts of \scheme{g} and some chaperone installation.
-This primitive presents no problem for chaperone discharge as \scheme{(chaperone-of? f f)} always evaluates to \scheme{#t}.
-However, if a chaperone has been promoted to an impersonator and flows to the first argument position, the meaning of the program is changed, making the promotion unsound.
-If chaperone values that both otherwise can and cannot be promoted flow to this position, we cannot promote the chaperones.
-If only promoted or discharged chaperones flow to it, we can replace it with the corresponding \scheme{impersonator-of?} call.
 
-We also must contend with the \scheme{chaperone?} and \scheme{impersonator?} predicates. We can apply similar reasoning to integrate them into our original analysis.
-Given that Racket programmers are discouraged from using them, we don't expect them to regularly upend our analysis, but of course we must account for them.
+%Interposition primitives exist for more than functions in Racket: boxes, vectors, hash tables, continuation mark keys, etc.
+
+%We omitted from \chapcalc a few primitives that exist in Racket that must be accounted for by our analysis.
+%A call \scheme{(chaperone-of? f g)} determines whether \scheme{f} is \scheme{equal?} to \scheme{g} modulo chaperones.
+%In other words, it determines whether \scheme{f} could be constructed from the parts of \scheme{g} and some chaperone installation.
+%This primitive presents no problem for chaperone discharge as \scheme{(chaperone-of? f f)} always evaluates to \scheme{#t}.
+%However, if a chaperone has been promoted to an impersonator and flows to the first argument position, the meaning of the program is changed, making the promotion unsound.
+%If chaperone values that both otherwise can and cannot be promoted flow to this position, we cannot promote the chaperones.
+%If only promoted or discharged chaperones flow to it, we can replace it with the corresponding \scheme{impersonator-of?} call.
+
+%We also must contend with the \scheme{chaperone?} and \scheme{impersonator?} predicates. We can apply similar reasoning to integrate them into our original analysis.
+%Given that Racket programmers are discouraged from using them, we don't expect them to regularly upend our analysis, but of course we must account for them.
 
 %\section{Next}
 
